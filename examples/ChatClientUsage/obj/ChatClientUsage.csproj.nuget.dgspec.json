@@ -1,0 +1,219 @@
+{
+  "format": 1,
+  "restore": {
+    "/src/opencode-dotnet/examples/ChatClientUsage/ChatClientUsage.csproj": {}
+  },
+  "projects": {
+    "/src/opencode-dotnet/examples/ChatClientUsage/ChatClientUsage.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/src/opencode-dotnet/examples/ChatClientUsage/ChatClientUsage.csproj",
+        "projectName": "ChatClientUsage",
+        "projectPath": "/src/opencode-dotnet/examples/ChatClientUsage/ChatClientUsage.csproj",
+        "packagesPath": "/home/dev/.nuget/packages/",
+        "outputPath": "/src/opencode-dotnet/examples/ChatClientUsage/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/dev/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/LionFire.OpenCode.Serve.AgentFramework.csproj": {
+                "projectPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/LionFire.OpenCode.Serve.AgentFramework.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.100"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/LionFire.OpenCode.Serve.AgentFramework.csproj": {
+      "version": "0.1.0",
+      "restore": {
+        "projectUniqueName": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/LionFire.OpenCode.Serve.AgentFramework.csproj",
+        "projectName": "LionFire.OpenCode.Serve.AgentFramework",
+        "projectPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/LionFire.OpenCode.Serve.AgentFramework.csproj",
+        "packagesPath": "/home/dev/.nuget/packages/",
+        "outputPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve.AgentFramework/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/dev/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj": {
+                "projectPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.100"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.AI.Abstractions": {
+              "target": "Package",
+              "version": "[9.4.0-preview.1.25207.5, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj": {
+      "version": "0.1.0",
+      "restore": {
+        "projectUniqueName": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj",
+        "projectName": "LionFire.OpenCode.Serve",
+        "projectPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj",
+        "packagesPath": "/home/dev/.nuget/packages/",
+        "outputPath": "/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/dev/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.100"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.DependencyInjection.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Http": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Options": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

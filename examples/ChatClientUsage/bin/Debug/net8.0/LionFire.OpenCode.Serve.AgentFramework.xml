@@ -1,0 +1,211 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>LionFire.OpenCode.Serve.AgentFramework</name>
+    </assembly>
+    <members>
+        <member name="T:LionFire.OpenCode.Serve.AgentFramework.OpenCodeClientExtensions">
+            <summary>
+            Extension methods for integrating OpenCode with Microsoft.Extensions.AI.
+            </summary>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeClientExtensions.AsChatClient(LionFire.OpenCode.Serve.IOpenCodeClient,LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions)">
+            <summary>
+            Creates an <see cref="T:Microsoft.Extensions.AI.IChatClient"/> from the OpenCode client.
+            </summary>
+            <param name="client">The OpenCode client.</param>
+            <param name="options">Optional configuration options.</param>
+            <returns>A chat client implementation.</returns>
+            <example>
+            <code>
+            IChatClient chatClient = openCodeClient.AsChatClient();
+            var response = await chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "Hello!")]);
+            </code>
+            </example>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeClientExtensions.AsChatClient(LionFire.OpenCode.Serve.IOpenCodeClient,System.String,LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions)">
+            <summary>
+            Creates an <see cref="T:Microsoft.Extensions.AI.IChatClient"/> with a specific session.
+            </summary>
+            <param name="client">The OpenCode client.</param>
+            <param name="sessionId">The session ID to use.</param>
+            <param name="options">Optional configuration options.</param>
+            <returns>A chat client implementation bound to the session.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeClientExtensions.AsChatClient(LionFire.OpenCode.Serve.ISessionScope,LionFire.OpenCode.Serve.IOpenCodeClient,LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions)">
+            <summary>
+            Creates an <see cref="T:Microsoft.Extensions.AI.IChatClient"/> from a session scope.
+            The chat client will use the scope's session and will not clean it up.
+            </summary>
+            <param name="scope">The session scope.</param>
+            <param name="client">The OpenCode client.</param>
+            <param name="options">Optional configuration options.</param>
+            <returns>A chat client implementation bound to the session scope.</returns>
+        </member>
+        <member name="T:LionFire.OpenCode.Serve.AgentFramework.ServiceCollectionExtensions">
+            <summary>
+            Extension methods for registering Agent Framework services.
+            </summary>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.ServiceCollectionExtensions.AddOpenCodeChatClient(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.Action{LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions})">
+            <summary>
+            Adds an <see cref="T:Microsoft.Extensions.AI.IChatClient"/> implementation using OpenCode.
+            </summary>
+            <param name="services">The service collection.</param>
+            <param name="configureOptions">Optional delegate to configure the chat client options.</param>
+            <returns>The service collection for chaining.</returns>
+            <example>
+            <code>
+            services.AddOpenCodeClient(options =>
+            {
+                options.BaseUrl = "http://localhost:9123";
+            })
+            .Services.AddOpenCodeChatClient(chatOptions =>
+            {
+                chatOptions.ModelId = "opencode-claude";
+            });
+            </code>
+            </example>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.ServiceCollectionExtensions.AddKeyedOpenCodeChatClient(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.String,System.Action{LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions})">
+            <summary>
+            Adds a keyed <see cref="T:Microsoft.Extensions.AI.IChatClient"/> implementation using OpenCode.
+            Useful when you have multiple chat clients registered.
+            </summary>
+            <param name="services">The service collection.</param>
+            <param name="key">The key to use for the service.</param>
+            <param name="configureOptions">Optional delegate to configure the chat client options.</param>
+            <returns>The service collection for chaining.</returns>
+        </member>
+        <member name="T:LionFire.OpenCode.Serve.AgentFramework.MessageConverter">
+            <summary>
+            Utility class for converting between Microsoft.Extensions.AI messages and OpenCode messages.
+            </summary>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToChatMessage(LionFire.OpenCode.Serve.Models.Message)">
+            <summary>
+            Converts an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.Message"/> to a <see cref="T:Microsoft.Extensions.AI.ChatMessage"/>.
+            </summary>
+            <param name="message">The OpenCode message to convert.</param>
+            <returns>A ChatMessage with equivalent content.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToMessageParts(Microsoft.Extensions.AI.ChatMessage)">
+            <summary>
+            Converts a <see cref="T:Microsoft.Extensions.AI.ChatMessage"/> to OpenCode message parts.
+            </summary>
+            <param name="message">The ChatMessage to convert.</param>
+            <returns>A list of message parts representing the content.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToChatResponse(LionFire.OpenCode.Serve.Models.Message)">
+            <summary>
+            Converts an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.Message"/> to a <see cref="T:Microsoft.Extensions.AI.ChatResponse"/>.
+            </summary>
+            <param name="message">The OpenCode message to convert.</param>
+            <returns>A ChatResponse containing the message.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToChatRole(LionFire.OpenCode.Serve.Models.MessageRole)">
+            <summary>
+            Converts an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.MessageRole"/> to a <see cref="T:Microsoft.Extensions.AI.ChatRole"/>.
+            </summary>
+            <param name="role">The OpenCode message role.</param>
+            <returns>The equivalent ChatRole.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToMessageRole(Microsoft.Extensions.AI.ChatRole)">
+            <summary>
+            Converts a <see cref="T:Microsoft.Extensions.AI.ChatRole"/> to an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.MessageRole"/>.
+            </summary>
+            <param name="role">The ChatRole to convert.</param>
+            <returns>The equivalent MessageRole.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToAIContent(LionFire.OpenCode.Serve.Models.MessagePart)">
+            <summary>
+            Converts an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.MessagePart"/> to an <see cref="T:Microsoft.Extensions.AI.AIContent"/>.
+            </summary>
+            <param name="part">The message part to convert.</param>
+            <returns>The equivalent AIContent, or null if the part type is not supported.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToMessagePart(Microsoft.Extensions.AI.AIContent)">
+            <summary>
+            Converts an <see cref="T:Microsoft.Extensions.AI.AIContent"/> to an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.MessagePart"/>.
+            </summary>
+            <param name="content">The AI content to convert.</param>
+            <returns>The equivalent MessagePart, or null if the content type is not supported.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToChatMessages(System.Collections.Generic.IEnumerable{LionFire.OpenCode.Serve.Models.Message})">
+            <summary>
+            Converts a collection of OpenCode messages to ChatMessages.
+            </summary>
+            <param name="messages">The messages to convert.</param>
+            <returns>A list of converted ChatMessages.</returns>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.MessageConverter.ToChatResponseUpdate(LionFire.OpenCode.Serve.Models.MessageUpdate)">
+            <summary>
+            Converts an OpenCode <see cref="T:LionFire.OpenCode.Serve.Models.MessageUpdate"/> to a <see cref="T:Microsoft.Extensions.AI.ChatResponseUpdate"/>.
+            </summary>
+            <param name="update">The message update to convert.</param>
+            <returns>A ChatResponseUpdate, or null if there's no content.</returns>
+        </member>
+        <member name="T:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient">
+            <summary>
+            An implementation of <see cref="T:Microsoft.Extensions.AI.IChatClient"/> that wraps an OpenCode session.
+            Enables using OpenCode as a chat backend through the Microsoft.Extensions.AI abstractions.
+            </summary>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.Metadata">
+            <summary>
+            Gets the metadata for this chat client.
+            </summary>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.#ctor(LionFire.OpenCode.Serve.IOpenCodeClient,LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions)">
+            <summary>
+            Initializes a new instance of the <see cref="T:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient"/> class.
+            </summary>
+            <param name="client">The OpenCode client.</param>
+            <param name="options">Optional configuration options.</param>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.SessionId">
+            <summary>
+            Gets or sets the session ID for this chat client.
+            If not set, a new session will be created on the first message.
+            </summary>
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.GetResponseAsync(System.Collections.Generic.IEnumerable{Microsoft.Extensions.AI.ChatMessage},Microsoft.Extensions.AI.ChatOptions,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.GetStreamingResponseAsync(System.Collections.Generic.IEnumerable{Microsoft.Extensions.AI.ChatMessage},Microsoft.Extensions.AI.ChatOptions,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.GetService(System.Type,System.Object)">
+            <inheritdoc />
+        </member>
+        <member name="M:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient.Dispose">
+            <inheritdoc />
+        </member>
+        <member name="T:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions">
+            <summary>
+            Options for configuring the <see cref="T:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClient"/>.
+            </summary>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions.Directory">
+            <summary>
+            Gets or sets the working directory for sessions.
+            </summary>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions.ModelId">
+            <summary>
+            Gets or sets the model ID to report in metadata.
+            </summary>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions.BaseUrl">
+            <summary>
+            Gets or sets the base URL to report in metadata.
+            </summary>
+        </member>
+        <member name="P:LionFire.OpenCode.Serve.AgentFramework.OpenCodeChatClientOptions.CreateSessionPerConversation">
+            <summary>
+            Gets or sets whether to create a new session for each conversation.
+            Defaults to false (reuse session).
+            </summary>
+        </member>
+    </members>
+</doc>
