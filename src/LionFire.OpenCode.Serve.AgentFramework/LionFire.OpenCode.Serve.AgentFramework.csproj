@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Package metadata -->
+    <PackageId>LionFire.OpenCode.Serve.AgentFramework</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>LionFire</Authors>
+    <Description>Microsoft Agent Framework integration for LionFire.OpenCode.Serve SDK</Description>
+    <PackageTags>opencode;ai;coding;sdk;agent-framework;microsoft-agents</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/lionfire/opencode-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- Enable XML documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LionFire.OpenCode.Serve\LionFire.OpenCode.Serve.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft Extensions AI (stable abstractions) -->
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="9.4.0-preview.1.25207.5" />
+    <!-- Microsoft Agent Framework (preview) -->
+    <!-- Note: These packages are in preview - version may need updating -->
+    <!--
+    <PackageReference Include="Microsoft.Agents.AI.Abstractions" Version="*-*" />
+    -->
+  </ItemGroup>
+
+</Project>
