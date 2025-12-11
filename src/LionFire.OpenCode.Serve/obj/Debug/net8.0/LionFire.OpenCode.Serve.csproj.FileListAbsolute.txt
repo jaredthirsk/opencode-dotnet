@@ -1,0 +1,15 @@
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.csproj.AssemblyReference.cache
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.GeneratedMSBuildEditorConfig.editorconfig
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.AssemblyInfoInputs.cache
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.AssemblyInfo.cs
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.csproj.CoreCompileInputs.cache
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.sourcelink.json
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.xml
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/bin/Debug/net8.0/LionFire.OpenCode.Serve.deps.json
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/bin/Debug/net8.0/LionFire.OpenCode.Serve.dll
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/bin/Debug/net8.0/LionFire.OpenCode.Serve.pdb
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/bin/Debug/net8.0/LionFire.OpenCode.Serve.xml
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.dll
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/refint/LionFire.OpenCode.Serve.dll
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/LionFire.OpenCode.Serve.pdb
+/src/opencode-dotnet/src/LionFire.OpenCode.Serve/obj/Debug/net8.0/ref/LionFire.OpenCode.Serve.dll
