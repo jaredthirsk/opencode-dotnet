@@ -1,0 +1,96 @@
+services:
+  devcontainer:
+    container_name: opencode-dotnet-dev
+    hostname: ${PROJECT_NAME:-opencode-dotnet}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: dev
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    user: dev
+    volumes:
+
+      ### READ ONLY ###
+      - /st/dev:/st/dev:ro
+
+      # Hostname setup script
+      - ./set-hostname.sh:/set-hostname.sh:ro
+      # Host hostname detection
+      - /etc/hostname:/etc/host_hostname:ro
+      - /etc/hosts:/etc/hosts:ro
+
+      # Tools
+      - /home/jared/bin/play_sound.sh:/home/dev/bin/play_sound.sh:ro
+
+      ### READ ONLY + COPY ON WRITE ###
+
+      # Managed by chezmoi (copy on write mode)
+      - /home/jared/.tmux.conf:/home/dev/.tmux.conf:O
+      - /home/jared/.tmux:/home/dev/.tmux:ro
+      - /home/jared/.gitconfig:/home/dev/.gitconfig:O
+      - /home/jared/.jaredrc:/home/dev/.jaredrc:O
+      # Git and SSH
+      - /home/jared/.ssh:/home/dev/.ssh:O
+
+      ### READ/WRITE ###
+
+      # Project(s)
+      - /src/axi-user:/src/axi-user
+      - /src/axi:/src/axi
+
+      # Claude: settings
+      - /home/jared/.claude:/home/dev/.claude:rw
+
+      # Project directory
+      - /src/opencode-dotnet:/src/opencode-dotnet
+
+      # NuGet package output (for publishing)
+      - /mnt/c/build/packages:/mnt/c/build/packages
+      - /mnt/g/build/packages:/mnt/g/build/packages
+
+      # ~/.local
+
+      ## Claude: binary and data
+      - /home/jared/.local/bin/claude:/home/dev/.local/bin/claude:rw
+      - /home/jared/.local/share/claude:/home/dev/.local/share/claude:rw
+      - /home/jared/.local/state/claude:/home/dev/.local/state/claude:rw
+
+      # Claude: settings
+      - /home/jared/.claude:/home/dev/.claude:rw
+      - /home/jared/.claude.json:/home/dev/.claude.json:rw
+
+      # VS Code Server - mount entire directory
+      - vscode-server:/home/dev/.vscode-server
+
+      # Other persistent volumes
+      - bash-history:/commandhistory
+      - tmux-sessions:/home/dev/.tmux
+      - nuget-cache:/home/dev/.nuget
+
+    working_dir: /src/opencode-dotnet
+    entrypoint: ["/set-hostname.sh"]
+    command: /bin/bash -c "while sleep 1000; do :; done"
+    environment:
+      - TZ=America/Edmonton
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_USE_POLLING_FILE_WATCHER=true
+      - HISTFILE=/commandhistory/.bash_history
+
+      # NuGet configuration
+      - NUGET_XMLDOC_MODE=skip
+
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  vscode-server:
+  bash-history:
+  tmux-sessions:
+  nuget-cache:

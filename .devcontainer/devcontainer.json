@@ -1,0 +1,59 @@
+{
+  "name": "OpenCode .NET SDK Dev",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/src/opencode-dotnet",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-dotnettools.vscodeintellicode-csharp",
+        "formulahendry.dotnet-test-explorer",
+        "jmrog.vscode-nuget-package-manager",
+        "editorconfig.editorconfig",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode-remote.remote-containers",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": true,
+          "source.organizeImports": true
+        },
+        "files.exclude": {
+          "**/bin": true,
+          "**/obj": true,
+          "**/.vs": true
+        },
+        "files.eol": "\n",
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "dotnet.defaultSolution": "disable",
+        "omnisharp.enableRoslynAnalyzers": true,
+        "omnisharp.enableEditorConfigSupport": true,
+        "csharp.format.enable": true,
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csharp",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+          }
+        }
+      }
+    }
+  },
+
+  "forwardPorts": [],
+
+  "postCreateCommand": "chezmoi init --apply --verbose https://gitlab.lionfire.ca/jaredthirsk/dotfiles.git || true && dos2unix ~/.bashrc ~/.jaredrc 2>/dev/null || true && echo 'OpenCode .NET SDK DevContainer ready! Run \"dotnet build\" to build or \"dotnet test\" to run tests.'",
+
+  "postStartCommand": "dos2unix ~/.bashrc ~/.jaredrc 2>/dev/null || true && echo 'OpenCode .NET SDK DevContainer started. Ready for .NET 8 development!'",
+
+  "remoteUser": "dev"
+}
