@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker logs:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(axi pm validate:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(test:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/src/axi",
+      "/src/axi-user",
+      "/dv",
+      "/dv/agent-framework/"
+    ]
+  }
+}

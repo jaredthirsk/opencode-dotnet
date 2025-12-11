@@ -1,0 +1,6 @@
+# Environment files with sensitive data
+.env
+
+# Backup files
+*.bak
+*.backup
