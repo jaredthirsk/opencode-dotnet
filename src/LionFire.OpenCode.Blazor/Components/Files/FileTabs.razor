@@ -1,0 +1,103 @@
+@* Draggable tab bar for open files *@
+
+<div class="file-tabs">
+    <div class="tabs-container">
+        @if (openFiles != null && openFiles.Any())
+        {
+            @foreach (var file in openFiles)
+            {
+                <div class="tab @(file.Id == activeFileId ? "active" : "")"
+                     draggable="true"
+                     @ondragstart="() => StartDrag(file.Id)"
+                     @ondrop="() => DropTab(file.Id)"
+                     @ondragover="AllowDrop"
+                     @onclick="() => SelectFile(file.Id)">
+                    <FileIcon FileName="@file.Name" />
+                    <span class="tab-name">@file.Name</span>
+                    @if (file.IsModified)
+                    {
+                        <span class="tab-modified">●</span>
+                    }
+                    <button class="tab-close" @onclick:stopPropagation="true" @onclick="() => CloseFile(file.Id)" title="Close">
+                        ×
+                    </button>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="tabs-actions">
+        <button class="btn-new-file" @onclick="CreateNewFile" title="New file">+</button>
+    </div>
+</div>
+
+@code {
+    private List<FileTab>? openFiles;
+    private string? activeFileId;
+    private string? draggedFileId;
+
+    [Parameter]
+    public EventCallback<string> OnFileSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFileOpened { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFileClosed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load open files from session
+        // TODO: Restore tab order from preferences
+        // TODO: Load file modification status
+        await Task.CompletedTask;
+    }
+
+    private void StartDrag(string fileId)
+    {
+        draggedFileId = fileId;
+        // TODO: Set drag data
+    }
+
+    private void AllowDrop(DragEventArgs e)
+    {
+        e.DataTransfer.DropEffect = "move";
+    }
+
+    private void DropTab(string fileId)
+    {
+        // TODO: Reorder tabs
+        // TODO: Save new tab order
+    }
+
+    private async Task SelectFile(string fileId)
+    {
+        activeFileId = fileId;
+        await OnFileSelected.InvokeAsync(fileId);
+    }
+
+    private async Task CloseFile(string fileId)
+    {
+        // TODO: Check if modified, prompt to save
+        // TODO: Remove from open files
+        openFiles?.RemoveAll(f => f.Id == fileId);
+        await OnFileClosed.InvokeAsync(fileId);
+    }
+
+    private async Task CreateNewFile()
+    {
+        // TODO: Create new file dialog
+        // TODO: Add to open files
+        // TODO: Focus new file tab
+        await Task.CompletedTask;
+    }
+
+    private class FileTab
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? Path { get; set; }
+        public string? Content { get; set; }
+        public bool IsModified { get; set; }
+    }
+}

@@ -1,0 +1,86 @@
+@* Diff statistics and summary *@
+
+<div class="diff-summary">
+    @if (!string.IsNullOrEmpty(Summary))
+    {
+        <div class="summary-header">
+            <h4>Changes Summary</h4>
+        </div>
+
+        <div class="summary-stats">
+            @* TODO: Parse summary and display file-level changes *@
+            <div class="stat-item">
+                <span class="stat-label">Files Changed</span>
+                <span class="stat-value">@filesChanged</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Additions</span>
+                <span class="stat-value added">+@totalAdditions</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Deletions</span>
+                <span class="stat-value removed">-@totalDeletions</span>
+            </div>
+        </div>
+
+        <div class="summary-files">
+            @foreach (var file in changedFiles)
+            {
+                <div class="file-change">
+                    <span class="file-name">@file.Name</span>
+                    <span class="file-stats">
+                        @if (file.Status == "added")
+                        {
+                            <span class="badge badge-added">new</span>
+                        }
+                        else if (file.Status == "deleted")
+                        {
+                            <span class="badge badge-deleted">deleted</span>
+                        }
+                        else if (file.Status == "renamed")
+                        {
+                            <span class="badge badge-renamed">renamed</span>
+                        }
+                        <span class="additions">+@file.Additions</span>
+                        <span class="deletions">-@file.Deletions</span>
+                    </span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<FileChange> changedFiles = new();
+    private int filesChanged = 0;
+    private int totalAdditions = 0;
+    private int totalDeletions = 0;
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(Summary))
+        {
+            await ParseSummary();
+        }
+    }
+
+    private async Task ParseSummary()
+    {
+        // TODO: Parse summary string for file changes
+        // TODO: Extract file names and change statistics
+        // TODO: Categorize changes by type (added, modified, deleted, renamed)
+        // TODO: Calculate totals
+        await Task.CompletedTask;
+    }
+
+    private class FileChange
+    {
+        public string? Name { get; set; }
+        public string? Status { get; set; } // "added", "modified", "deleted", "renamed"
+        public int Additions { get; set; }
+        public int Deletions { get; set; }
+    }
+}

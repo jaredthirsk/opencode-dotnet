@@ -1,0 +1,49 @@
+@* Collapsible file tree sidebar *@
+
+<aside class="opencode-sidebar" style="width: @(isCollapsed ? "40px" : "300px")">
+    <div class="sidebar-header">
+        <button class="sidebar-toggle" @onclick="ToggleSidebar" title="Toggle sidebar">
+            <span>≡</span>
+        </button>
+        @if (!isCollapsed)
+        {
+            <span class="sidebar-title">Files</span>
+        }
+    </div>
+
+    @if (!isCollapsed)
+    {
+        <div class="sidebar-content">
+            <FileTree @ref="fileTreeComponent" OnFileSelected="HandleFileSelected" />
+        </div>
+    }
+</aside>
+
+@code {
+    private FileTree? fileTreeComponent;
+    private bool isCollapsed = false;
+
+    [Parameter]
+    public EventCallback<string> OnFileSelected { get; set; }
+
+    private void ToggleSidebar()
+    {
+        isCollapsed = !isCollapsed;
+        // TODO: Persist sidebar state
+    }
+
+    private async Task HandleFileSelected(string filePath)
+    {
+        // TODO: Load file content
+        // TODO: Update file viewer
+        // TODO: Trigger file selection event
+        await OnFileSelected.InvokeAsync(filePath);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load sidebar collapsed state from preferences
+        // TODO: Build initial file tree
+        await Task.CompletedTask;
+    }
+}

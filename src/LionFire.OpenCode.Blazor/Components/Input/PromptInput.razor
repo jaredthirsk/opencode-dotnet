@@ -1,0 +1,139 @@
+@* Replicate prompt-input.tsx - main user input area *@
+
+<div class="prompt-input">
+    <div class="input-container">
+        <textarea class="prompt-textarea"
+                  @bind="promptText"
+                  @onkeydown="HandleKeyDown"
+                  placeholder="Enter your message... (Shift+Enter for new line, /at for files, / for commands)"
+                  rows="4">
+        </textarea>
+
+        <div class="input-toolbar">
+            <div class="toolbar-left">
+                <button @onclick="ShowAttachmentMenu" class="btn-attach" title="Attach files">
+                    <span>📎</span>
+                </button>
+                <button @onclick="ShowCommandMenu" class="btn-commands" title="Commands">
+                    <span>/</span>
+                </button>
+            </div>
+
+            <div class="toolbar-right">
+                @if (!string.IsNullOrEmpty(promptText))
+                {
+                    <button @onclick="ClearPrompt" class="btn-clear" title="Clear">
+                        <span>✕</span>
+                    </button>
+                }
+                <button @onclick="SendPrompt" disabled="@string.IsNullOrEmpty(promptText)" class="btn-send" title="Send (Ctrl+Enter)">
+                    <span>⬆️</span>
+                </button>
+            </div>
+        </div>
+
+        @if (attachedFiles.Any())
+        {
+            <div class="attached-files">
+                @foreach (var file in attachedFiles)
+                {
+                    <div class="attached-file">
+                        <FileIcon FileName="@file.Name" />
+                        <span>@file.Name</span>
+                        <button @onclick="() => RemoveAttachment(file.Id)" class="btn-remove">×</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (showAutocomplete)
+    {
+        <Autocomplete Items="autocompleteItems" OnSelect="HandleAutocompleteSelect" />
+    }
+
+    @if (showAttachmentDialog)
+    {
+        <FileAttachment OnFilesSelected="HandleFilesSelected" OnClosed="() => showAttachmentDialog = false" />
+    }
+</div>
+
+@code {
+    private string promptText = "";
+    private List<AttachedFile> attachedFiles = new();
+    private bool showAutocomplete = false;
+    private List<AutocompleteItem> autocompleteItems = new();
+    private bool showAttachmentDialog = false;
+
+    /// <summary>
+    /// Callback when the user submits a prompt.
+    /// Uses shared PromptSubmission from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    [Parameter]
+    public EventCallback<PromptSubmission> OnPromptSubmitted { get; set; }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        // TODO: Ctrl+Enter to send
+        // TODO: Shift+Enter for new line
+        // TODO: @ triggers file autocomplete
+        // TODO: / triggers command autocomplete
+        // TODO: Escape to close autocomplete
+    }
+
+    private async Task HandleAutocompleteSelect(string value)
+    {
+        // TODO: Insert selected value
+        // TODO: Adjust cursor position
+        showAutocomplete = false;
+        await Task.CompletedTask;
+    }
+
+    private void ShowAttachmentMenu()
+    {
+        showAttachmentDialog = true;
+        // TODO: Show file picker
+    }
+
+    private void ShowCommandMenu()
+    {
+        // TODO: Show command palette
+        // TODO: List available commands
+    }
+
+    private async Task HandleFilesSelected(List<AttachedFile> files)
+    {
+        attachedFiles.AddRange(files);
+        showAttachmentDialog = false;
+        // TODO: Add file references to prompt text
+        await Task.CompletedTask;
+    }
+
+    private void RemoveAttachment(string fileId)
+    {
+        attachedFiles.RemoveAll(f => f.Id == fileId);
+        // TODO: Remove from prompt text
+    }
+
+    private async Task SendPrompt()
+    {
+        if (string.IsNullOrWhiteSpace(promptText))
+            return;
+
+        var submission = new PromptSubmission
+        {
+            Text = promptText,
+            AttachedFiles = attachedFiles
+        };
+
+        await OnPromptSubmitted.InvokeAsync(submission);
+        promptText = "";
+        attachedFiles.Clear();
+    }
+
+    private void ClearPrompt()
+    {
+        promptText = "";
+        attachedFiles.Clear();
+    }
+}

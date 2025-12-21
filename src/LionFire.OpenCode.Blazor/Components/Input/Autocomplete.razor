@@ -1,0 +1,53 @@
+@* @ and / autocomplete dropdown *@
+
+<div class="autocomplete-dropdown">
+    <div class="autocomplete-list">
+        @if (Items != null && Items.Any())
+        {
+            @foreach (var item in Items)
+            {
+                <div class="autocomplete-item @(item.Value == selectedValue ? "selected" : "")"
+                     @onclick="() => Select(item.Value)">
+                    <div class="item-label">@item.Label</div>
+                    @if (!string.IsNullOrEmpty(item.Description))
+                    {
+                        <div class="item-description">@item.Description</div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p class="empty-state">No matches</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string? selectedValue;
+
+    /// <summary>
+    /// The list of autocomplete items to display.
+    /// Uses shared AutocompleteItem from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    [Parameter]
+    public List<AutocompleteItem>? Items { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Set initial selection to first item
+        // TODO: Handle keyboard navigation
+        await Task.CompletedTask;
+    }
+
+    private async Task Select(string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            await OnSelect.InvokeAsync(value);
+        }
+    }
+}

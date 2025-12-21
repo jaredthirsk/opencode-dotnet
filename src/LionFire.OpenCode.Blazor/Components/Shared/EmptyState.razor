@@ -1,0 +1,100 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<div class="empty-state @Class">
+    @if (Icon != null)
+    {
+        <div class="empty-state-icon">
+            @Icon
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(IconType))
+    {
+        <div class="empty-state-icon">
+            <svg class="default-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                @((MarkupString)GetIconSvg())
+            </svg>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h3 class="empty-state-title">@Title</h3>
+    }
+
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <p class="empty-state-description">@Description</p>
+    }
+
+    @if (Action != null)
+    {
+        <div class="empty-state-action">
+            @Action
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public string? IconType { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? Action { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string GetIconSvg()
+    {
+        return IconType?.ToLower() switch
+        {
+            "chat" or "message" => "<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+            "folder" or "session" => "<path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v11Z\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+            "search" => "<circle cx=\"11\" cy=\"11\" r=\"8\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"m21 21-4.35-4.35\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>",
+            "file" => "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polyline points=\"14,2 14,8 20,8\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+            "error" => "<circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"1.5\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>",
+            _ => "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" stroke=\"currentColor\" stroke-width=\"1.5\"/>"
+        };
+    }
+}
+
+<style>
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--text-weak);
+    }
+
+    .empty-state-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+        color: var(--icon-weak);
+    }
+
+    .default-icon {
+        width: 100%;
+        height: 100%;
+    }
+
+    .empty-state-title {
+        font-size: var(--font-size-large);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+        margin: 0 0 8px 0;
+    }
+
+    .empty-state-description {
+        font-size: var(--font-size-base);
+        color: var(--text-weaker);
+        margin: 0;
+        max-width: 400px;
+        line-height: 1.5;
+    }
+
+    .empty-state-action {
+        margin-top: 16px;
+    }
+</style>

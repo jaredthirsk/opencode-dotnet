@@ -1,0 +1,76 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<div class="typing-indicator @Class">
+    @if (!string.IsNullOrEmpty(Text))
+    {
+        <span class="typing-text">@Text</span>
+    }
+    <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string? Class { get; set; }
+}
+
+<style>
+    .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-weak);
+        font-size: var(--font-size-small);
+    }
+
+    .typing-text {
+        font-style: italic;
+    }
+
+    .typing-dots {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .typing-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: typing-pulse 1.2s ease-in-out infinite;
+    }
+
+    .typing-dots span:nth-child(1) {
+        animation-delay: 0s;
+    }
+
+    .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing-pulse {
+        0%, 100% {
+            opacity: 0.4;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+    }
+
+    /* Reduced motion support */
+    @@media (prefers-reduced-motion: reduce) {
+        .typing-dots span {
+            animation: none !important;
+            opacity: 0.7 !important;
+        }
+    }
+</style>

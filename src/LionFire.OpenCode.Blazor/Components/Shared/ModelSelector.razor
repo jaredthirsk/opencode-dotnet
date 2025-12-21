@@ -1,0 +1,95 @@
+@* Provider/model picker dropdown *@
+
+<div class="model-selector">
+    <button class="selector-button" @onclick="ToggleDropdown" type="button">
+        <ProviderIcon ProviderName="@selectedProvider" />
+        <span class="model-name">@(selectedModel ?? "Select Model")</span>
+        <span class="selector-icon">▼</span>
+    </button>
+
+    @if (isOpen)
+    {
+        <div class="selector-dropdown">
+            <div class="dropdown-header">Model Selection</div>
+
+            @if (providers != null)
+            {
+                @foreach (var provider in providers)
+                {
+                    <div class="provider-group">
+                        <div class="provider-name">@provider.Name</div>
+                        @if (provider.Models != null)
+                        {
+                            @foreach (var model in provider.Models)
+                            {
+                                <div class="model-item @(model.Id == selectedModel ? "active" : "")"
+                                     @onclick="() => SelectModel(model.Id, provider.Name)">
+                                    <span class="model-label">@model.DisplayName</span>
+                                    @if (!string.IsNullOrEmpty(model.Description))
+                                    {
+                                        <span class="model-description">@model.Description</span>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ProviderGroup>? providers;
+    private string? selectedModel;
+    private string? selectedProvider;
+    private bool isOpen = false;
+
+    [Parameter]
+    public EventCallback<ModelSelection> OnModelSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load available providers and models from service
+        // TODO: Load current model from session preferences
+        // TODO: Display cost/token info for each model
+        await Task.CompletedTask;
+    }
+
+    private void ToggleDropdown()
+    {
+        isOpen = !isOpen;
+    }
+
+    private async Task SelectModel(string modelId, string providerName)
+    {
+        selectedModel = modelId;
+        selectedProvider = providerName;
+        isOpen = false;
+
+        await OnModelSelected.InvokeAsync(new ModelSelection
+        {
+            ModelId = modelId,
+            Provider = providerName
+        });
+    }
+
+    public class ProviderGroup
+    {
+        public string? Name { get; set; }
+        public List<ModelInfo>? Models { get; set; }
+    }
+
+    public class ModelInfo
+    {
+        public string? Id { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class ModelSelection
+    {
+        public string? ModelId { get; set; }
+        public string? Provider { get; set; }
+    }
+}

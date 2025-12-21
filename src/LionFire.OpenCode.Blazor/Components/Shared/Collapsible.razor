@@ -1,0 +1,74 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<div class="collapsible @(IsExpanded ? "expanded" : "collapsed") @Class">
+    <div class="collapsible-header" @onclick="Toggle">
+        <div class="collapsible-trigger">
+            @Header
+        </div>
+        <svg class="collapsible-icon chevron-indicator @(IsExpanded ? "expanded" : "")" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6.6665 8.33325L9.99984 11.6666L13.3332 8.33325" stroke="currentColor" stroke-linecap="square"></path>
+        </svg>
+    </div>
+    <div class="collapsible-content collapsible-animate @(IsExpanded ? "expanded" : "collapsed")">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Header { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool IsExpanded { get; set; }
+    [Parameter] public EventCallback<bool> IsExpandedChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private async Task Toggle()
+    {
+        IsExpanded = !IsExpanded;
+        await IsExpandedChanged.InvokeAsync(IsExpanded);
+    }
+}
+
+<style>
+    .collapsible {
+        border-radius: var(--radius-md);
+    }
+
+    .collapsible-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.15s;
+    }
+
+    .collapsible-header:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .collapsible-trigger {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .collapsible-icon {
+        width: 16px;
+        height: 16px;
+        color: var(--icon-weak);
+        flex-shrink: 0;
+        /* Uses chevron-indicator from animations.css for rotation */
+    }
+
+    /* Content wrapper - uses collapsible-animate from animations.css */
+    .collapsible-content {
+        padding: 0 12px 12px 12px;
+    }
+
+    .collapsible-content.collapsed {
+        padding: 0;
+    }
+</style>

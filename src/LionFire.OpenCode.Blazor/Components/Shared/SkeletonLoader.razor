@@ -1,0 +1,133 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<div class="skeleton-loader @VariantClass @Class">
+    @switch (Variant)
+    {
+        case SkeletonVariant.Text:
+            <div class="skeleton skeleton-text" style="width: @Width"></div>
+            break;
+        case SkeletonVariant.TextMultiline:
+            <div class="skeleton skeleton-text" style="width: 100%"></div>
+            <div class="skeleton skeleton-text" style="width: 90%"></div>
+            <div class="skeleton skeleton-text" style="width: 75%"></div>
+            break;
+        case SkeletonVariant.Avatar:
+            <div class="skeleton skeleton-avatar"></div>
+            break;
+        case SkeletonVariant.Card:
+            <div class="skeleton skeleton-card"></div>
+            break;
+        case SkeletonVariant.Message:
+            <div class="skeleton-message">
+                <div class="skeleton skeleton-avatar"></div>
+                <div class="skeleton-message-content">
+                    <div class="skeleton skeleton-text" style="width: 100px"></div>
+                    <div class="skeleton skeleton-text" style="width: 100%"></div>
+                    <div class="skeleton skeleton-text" style="width: 80%"></div>
+                </div>
+            </div>
+            break;
+        case SkeletonVariant.List:
+            @for (int i = 0; i < Count; i++)
+            {
+                <div class="skeleton skeleton-list-item"></div>
+            }
+            break;
+        case SkeletonVariant.Custom:
+            @ChildContent
+            break;
+    }
+</div>
+
+@code {
+    [Parameter] public SkeletonVariant Variant { get; set; } = SkeletonVariant.Text;
+    [Parameter] public string Width { get; set; } = "100%";
+    [Parameter] public int Count { get; set; } = 3;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string VariantClass => Variant switch
+    {
+        SkeletonVariant.Message => "skeleton-message-variant",
+        SkeletonVariant.List => "skeleton-list-variant",
+        _ => ""
+    };
+}
+
+<style>
+    .skeleton-loader {
+        width: 100%;
+    }
+
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            var(--surface-inset-base) 25%,
+            var(--surface-inset-strong) 50%,
+            var(--surface-inset-base) 75%
+        );
+        background-size: 200% 100%;
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+        border-radius: var(--radius-sm);
+    }
+
+    @@keyframes skeleton-pulse {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .skeleton-text {
+        height: 14px;
+        margin-bottom: 8px;
+    }
+
+    .skeleton-text:last-child {
+        margin-bottom: 0;
+    }
+
+    .skeleton-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+
+    .skeleton-card {
+        height: 100px;
+        border-radius: var(--radius-md);
+    }
+
+    .skeleton-list-item {
+        height: 40px;
+        margin-bottom: 8px;
+        border-radius: var(--radius-sm);
+    }
+
+    .skeleton-list-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .skeleton-message {
+        display: flex;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .skeleton-message-content {
+        flex: 1;
+    }
+
+    .skeleton-message-variant {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Reduced motion support */
+    @@media (prefers-reduced-motion: reduce) {
+        .skeleton {
+            animation: none !important;
+            background: var(--surface-inset-base) !important;
+        }
+    }
+</style>

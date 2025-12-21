@@ -1,0 +1,111 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="sticky-header-container @Class" @ref="_containerRef">
+    <div class="sticky-header-sentinel" @ref="_sentinelRef"></div>
+    <div class="sticky-header @(_isStuck ? "is-stuck" : "")">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public int TopOffset { get; set; } = 0;
+    [Parameter] public EventCallback<bool> OnStickyChange { get; set; }
+
+    private ElementReference _containerRef;
+    private ElementReference _sentinelRef;
+    private bool _isStuck;
+    private DotNetObjectReference<StickyHeader>? _dotNetRef;
+    private IJSObjectReference? _jsModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            try
+            {
+                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                    "import", "./_content/LionFire.OpenCode.Blazor/js/sticky-header.js");
+
+                await _jsModule.InvokeVoidAsync("initStickyHeader", _sentinelRef, _dotNetRef, TopOffset);
+            }
+            catch (JSException)
+            {
+                // JS module not available, sticky behavior won't work but component still renders
+            }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnStickyStateChanged(bool isStuck)
+    {
+        if (_isStuck != isStuck)
+        {
+            _isStuck = isStuck;
+            await OnStickyChange.InvokeAsync(isStuck);
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule != null)
+        {
+            try
+            {
+                await _jsModule.InvokeVoidAsync("destroyStickyHeader", _sentinelRef);
+                await _jsModule.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}
+
+<style>
+    .sticky-header-container {
+        position: relative;
+    }
+
+    .sticky-header-sentinel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        pointer-events: none;
+    }
+
+    .sticky-header {
+        position: sticky;
+        top: var(--sticky-top-offset, 0px);
+        z-index: 10;
+        transition: box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+
+    .sticky-header.is-stuck {
+        background: var(--surface-raised-base);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(8px);
+    }
+
+    /* Dark mode shadow adjustment */
+    @@media (prefers-color-scheme: dark) {
+        .sticky-header.is-stuck {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+    }
+
+    .dark .sticky-header.is-stuck {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+</style>

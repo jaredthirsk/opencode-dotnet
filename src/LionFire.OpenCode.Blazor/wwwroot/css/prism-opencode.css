@@ -1,0 +1,243 @@
+/*
+ * OpenCode Prism Theme
+ * Custom Prism.js theme using OpenCode CSS variables
+ * Supports both light and dark modes via semantic variables
+ */
+
+/* Base code styling */
+code[class*="language-"],
+pre[class*="language-"] {
+  color: var(--text-base);
+  background: none;
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  tab-size: 2;
+  hyphens: none;
+}
+
+/* Code block containers */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: 0;
+  overflow: auto;
+  border-radius: var(--radius-md);
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+  white-space: normal;
+}
+
+/* Token styling - mapped to OpenCode syntax variables */
+
+/* Comments */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+/* Punctuation */
+.token.punctuation {
+  color: var(--syntax-punctuation);
+}
+
+/* Namespaces */
+.token.namespace {
+  opacity: 0.8;
+}
+
+/* Properties, tags, booleans, numbers, constants */
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: var(--syntax-property);
+}
+
+.token.boolean,
+.token.number {
+  color: var(--syntax-primitive);
+}
+
+/* Selectors, strings, characters, attributes */
+.token.selector,
+.token.attr-name,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: var(--syntax-string);
+}
+
+.token.string {
+  color: var(--syntax-string);
+}
+
+/* Operators, entities, URLs */
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--syntax-operator);
+}
+
+/* At-rules, keywords, regex */
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: var(--syntax-keyword);
+}
+
+/* Functions */
+.token.function,
+.token.class-name {
+  color: var(--syntax-type);
+}
+
+/* Regex and important */
+.token.regex,
+.token.important,
+.token.variable {
+  color: var(--syntax-variable);
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+/* Diff highlighting */
+.token.deleted {
+  color: var(--syntax-diff-delete);
+  background: var(--surface-diff-delete-weak);
+}
+
+.token.inserted {
+  color: var(--syntax-diff-add);
+  background: var(--surface-diff-add-weak);
+}
+
+/* Line highlighting */
+.line-highlight {
+  background: linear-gradient(to right, var(--surface-base-active) 70%, transparent);
+}
+
+/* Line numbers */
+.line-numbers .line-numbers-rows {
+  border-right: 1px solid var(--border-weak-base);
+}
+
+.line-numbers-rows > span:before {
+  color: var(--text-weaker);
+}
+
+/* Selection */
+code[class*="language-"]::selection,
+code[class*="language-"] *::selection,
+pre[class*="language-"]::selection,
+pre[class*="language-"] *::selection {
+  background: var(--surface-interactive-base);
+  color: var(--text-on-interactive-base);
+}
+
+/* Command line prompt styling */
+.command-line-prompt > span:before {
+  color: var(--text-weaker);
+}
+
+/* Shell/bash specific */
+.language-bash .token.function,
+.language-shell .token.function {
+  color: var(--syntax-type);
+}
+
+/* JSON specific */
+.language-json .token.property {
+  color: var(--syntax-property);
+}
+
+/* TypeScript/JavaScript specific */
+.language-typescript .token.builtin,
+.language-javascript .token.builtin,
+.language-tsx .token.builtin,
+.language-jsx .token.builtin {
+  color: var(--syntax-type);
+}
+
+/* C# specific */
+.language-csharp .token.class-name,
+.language-cs .token.class-name {
+  color: var(--syntax-type);
+}
+
+.language-csharp .token.keyword,
+.language-cs .token.keyword {
+  color: var(--syntax-keyword);
+}
+
+/* CSS specific */
+.language-css .token.selector {
+  color: var(--syntax-type);
+}
+
+.language-css .token.property {
+  color: var(--syntax-property);
+}
+
+/* HTML/XML specific */
+.language-markup .token.tag,
+.language-html .token.tag,
+.language-xml .token.tag {
+  color: var(--syntax-keyword);
+}
+
+.language-markup .token.attr-name,
+.language-html .token.attr-name,
+.language-xml .token.attr-name {
+  color: var(--syntax-property);
+}
+
+.language-markup .token.attr-value,
+.language-html .token.attr-value,
+.language-xml .token.attr-value {
+  color: var(--syntax-string);
+}
+
+/* YAML specific */
+.language-yaml .token.key {
+  color: var(--syntax-property);
+}
+
+/* Markdown specific */
+.language-markdown .token.title {
+  color: var(--markdown-heading);
+  font-weight: bold;
+}
+
+.language-markdown .token.url {
+  color: var(--markdown-link);
+}
+
+.language-markdown .token.code {
+  color: var(--markdown-code);
+}

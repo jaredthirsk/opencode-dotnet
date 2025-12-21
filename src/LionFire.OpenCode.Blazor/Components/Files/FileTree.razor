@@ -1,0 +1,49 @@
+@* Replicate file-tree.tsx - hierarchical file structure *@
+
+<div class="file-tree">
+    @if (treeNodes != null && treeNodes.Any())
+    {
+        <RenderFileTreeNode Nodes="treeNodes" OnFileSelected="HandleFileSelected" />
+    }
+    else
+    {
+        <p class="empty-state">No files</p>
+    }
+</div>
+
+@code {
+    private List<FileTreeNode>? treeNodes;
+
+    [Parameter]
+    public string? RootPath { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFileSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Build file tree from root path
+        // TODO: Load directory structure asynchronously
+        // TODO: Cache tree structure for performance
+        // TODO: Handle .gitignore patterns
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleFileSelected(string filePath)
+    {
+        // TODO: Expand parent directories if needed
+        // TODO: Highlight selected file
+        // TODO: Scroll to view
+        await OnFileSelected.InvokeAsync(filePath);
+    }
+
+    public class FileTreeNode
+    {
+        public string? Name { get; set; }
+        public string? Path { get; set; }
+        public string? Type { get; set; } // "file" or "directory"
+        public bool IsExpanded { get; set; }
+        public List<FileTreeNode>? Children { get; set; }
+        public string? Icon { get; set; }
+    }
+}

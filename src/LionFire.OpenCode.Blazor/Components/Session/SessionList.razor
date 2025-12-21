@@ -1,0 +1,65 @@
+@* Session history list *@
+
+<div class="session-list">
+    <div class="session-list-header">
+        <h3>Sessions</h3>
+        <button class="btn-new-session" @onclick="CreateNewSession" title="New session">
+            <span>+</span>
+        </button>
+    </div>
+
+    <div class="session-list-content">
+        @if (sessions != null && sessions.Any())
+        {
+            @foreach (var session in sessions)
+            {
+                <div class="session-item @(session.Id == selectedSessionId ? "active" : "")"
+                     @onclick="() => SelectSession(session.Id)">
+                    <span class="session-name">@(session.Name ?? $"Session {session.Id}")</span>
+                    <span class="session-date">@(session.CreatedAt.ToString("M/d/yy"))</span>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="empty-state">No sessions yet</p>
+        }
+    </div>
+</div>
+
+@code {
+    private List<SessionData>? sessions;
+    private string? selectedSessionId;
+
+    [Parameter]
+    public EventCallback<string> OnSessionSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load sessions from service
+        // TODO: Sort by most recent first
+        // TODO: Limit to recent N sessions (e.g., 20)
+        await Task.CompletedTask;
+    }
+
+    private async Task SelectSession(string sessionId)
+    {
+        selectedSessionId = sessionId;
+        await OnSessionSelected.InvokeAsync(sessionId);
+        // TODO: Load session content
+    }
+
+    private async Task CreateNewSession()
+    {
+        // TODO: Create new session
+        // TODO: Navigate to new session
+        await Task.CompletedTask;
+    }
+
+    private class SessionData
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

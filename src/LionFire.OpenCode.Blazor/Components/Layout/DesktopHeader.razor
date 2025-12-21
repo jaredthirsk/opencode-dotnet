@@ -1,0 +1,36 @@
+@* Top bar with session selector and controls *@
+
+<header class="opencode-header">
+    <div class="header-left">
+        <div class="opencode-logo">
+            <span class="logo-icon">⚙️</span>
+            <span class="logo-text">OpenCode</span>
+        </div>
+        <SessionSelector @ref="sessionSelectorComponent" />
+    </div>
+
+    <div class="header-center">
+        @* TODO: Breadcrumb or status display *@
+    </div>
+
+    <div class="header-right">
+        <ModelSelector @ref="modelSelectorComponent" />
+        <CostTracker @ref="costTrackerComponent" />
+        <ThemeToggle @ref="themeToggleComponent" />
+    </div>
+</header>
+
+@code {
+    private SessionSelector? sessionSelectorComponent;
+    private ModelSelector? modelSelectorComponent;
+    private CostTracker? costTrackerComponent;
+    private ThemeToggle? themeToggleComponent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load available sessions
+        // TODO: Set current session
+        // TODO: Initialize theme preference
+        await Task.CompletedTask;
+    }
+}

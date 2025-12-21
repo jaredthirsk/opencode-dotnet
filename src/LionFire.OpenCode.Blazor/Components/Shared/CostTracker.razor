@@ -1,0 +1,107 @@
+@* Token/cost display and tracking *@
+
+<div class="cost-tracker">
+    <button class="tracker-button" @onclick="ToggleDetails" title="Show cost details">
+        <span class="icon">💰</span>
+        <span class="tokens">@tokens T</span>
+        <span class="cost">$@cost.ToString("0.00")</span>
+    </button>
+
+    @if (showDetails)
+    {
+        <div class="cost-details">
+            <div class="details-header">
+                <h4>Session Costs</h4>
+                <button @onclick="() => showDetails = false" class="btn-close">×</button>
+            </div>
+
+            <div class="details-content">
+                <div class="stat-row">
+                    <span class="stat-label">Total Tokens:</span>
+                    <span class="stat-value">@tokens</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Input Tokens:</span>
+                    <span class="stat-value">@inputTokens</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Output Tokens:</span>
+                    <span class="stat-value">@outputTokens</span>
+                </div>
+                <div class="stat-row separator">
+                    <span class="stat-label">Total Cost:</span>
+                    <span class="stat-value">$@cost.ToString("0.0000")</span>
+                </div>
+
+                <div class="model-breakdown">
+                    <h5>By Model</h5>
+                    @if (modelCosts != null)
+                    {
+                        @foreach (var mc in modelCosts)
+                        {
+                            <div class="model-cost">
+                                <span class="model-name">@mc.Model</span>
+                                <span class="model-value">$@mc.Cost.ToString("0.0000")</span>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="details-footer">
+                <button @onclick="ResetCounters" class="btn-reset">Reset</button>
+                <button @onclick="ExportCosts" class="btn-export">Export CSV</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private int tokens = 0;
+    private int inputTokens = 0;
+    private int outputTokens = 0;
+    private decimal cost = 0m;
+    private bool showDetails = false;
+    private List<ModelCost>? modelCosts;
+
+    [Parameter]
+    public string? SessionId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load session costs from service
+        // TODO: Subscribe to token/cost updates via SignalR
+        // TODO: Calculate and display real-time costs
+        // TODO: Store cost history for session
+        await Task.CompletedTask;
+    }
+
+    private void ToggleDetails()
+    {
+        showDetails = !showDetails;
+    }
+
+    private async Task ResetCounters()
+    {
+        // TODO: Reset counters with confirmation
+        tokens = 0;
+        inputTokens = 0;
+        outputTokens = 0;
+        cost = 0m;
+        await Task.CompletedTask;
+    }
+
+    private async Task ExportCosts()
+    {
+        // TODO: Export costs as CSV
+        // TODO: Include per-model breakdown
+        // TODO: Include timestamps
+        await Task.CompletedTask;
+    }
+
+    private class ModelCost
+    {
+        public string? Model { get; set; }
+        public decimal Cost { get; set; }
+    }
+}

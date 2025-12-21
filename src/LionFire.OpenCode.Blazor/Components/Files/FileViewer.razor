@@ -1,0 +1,102 @@
+@* Code viewer for open files with syntax highlighting *@
+
+<div class="file-viewer">
+    @if (!string.IsNullOrEmpty(fileContent))
+    {
+        <div class="file-header">
+            <span class="file-path">@currentFilePath</span>
+            @if (isModified)
+            {
+                <span class="file-modified">modified</span>
+            }
+        </div>
+
+        <div class="file-editor">
+            <textarea class="code-editor"
+                      @bind="fileContent"
+                      @bind:event="oninput"
+                      @bind:after="HandleContentChange"
+                      placeholder="No file selected"
+                      rows="30">
+            </textarea>
+
+            @* TODO: Replace textarea with proper code editor component (Monaco or similar) *@
+        </div>
+
+        <div class="file-footer">
+            <span class="file-info">
+                Line @currentLine, Col @currentColumn | @lineCount lines | @(fileEncoding ?? "UTF-8")
+            </span>
+            <div class="file-actions">
+                <button @onclick="SaveFile" disabled="@(!isModified)" class="btn-save">Save</button>
+                <button @onclick="RevertFile" disabled="@(!isModified)" class="btn-revert">Revert</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="file-empty">
+            <p>No file selected</p>
+            <p class="empty-hint">Select a file from the sidebar or open a recent file</p>
+        </div>
+    }
+</div>
+
+@code {
+    private string? fileContent;
+    private string? currentFilePath;
+    private string? fileEncoding = "UTF-8";
+    private bool isModified = false;
+    private int currentLine = 1;
+    private int currentColumn = 1;
+    private int lineCount = 0;
+
+    [Parameter]
+    public string? FileId { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFileSaved { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(FileId))
+        {
+            await LoadFile(FileId);
+        }
+    }
+
+    private async Task LoadFile(string fileId)
+    {
+        // TODO: Load file content from service
+        // TODO: Detect file encoding
+        // TODO: Calculate line count
+        // TODO: Set syntax highlighting based on file type
+        // TODO: Restore cursor position from preferences
+        isModified = false;
+        await Task.CompletedTask;
+    }
+
+    private void HandleContentChange()
+    {
+        isModified = true;
+        // TODO: Trigger content changed event
+        // TODO: Update line/column count
+    }
+
+    private async Task SaveFile()
+    {
+        // TODO: Save file content to disk
+        // TODO: Validate content
+        // TODO: Show save indicator
+        isModified = false;
+        await OnFileSaved.InvokeAsync(currentFilePath ?? "");
+    }
+
+    private async Task RevertFile()
+    {
+        // TODO: Reload original file content
+        // TODO: Reset modification flag
+        isModified = false;
+        await Task.CompletedTask;
+    }
+}

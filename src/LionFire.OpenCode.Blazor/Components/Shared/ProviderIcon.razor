@@ -1,0 +1,98 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<span class="provider-icon provider-@(ProviderName?.ToLowerInvariant() ?? "unknown") @SizeClass" title="@ProviderName">
+    <svg viewBox="0 0 24 24" width="@GetSize()" height="@GetSize()">
+        @((MarkupString)GetProviderSvg())
+    </svg>
+    @if (ShowLabel)
+    {
+        <span class="provider-label">@GetDisplayName()</span>
+    }
+</span>
+
+@code {
+    [Parameter] public string? ProviderName { get; set; }
+    [Parameter] public ProviderIconSize Size { get; set; } = ProviderIconSize.Small;
+    [Parameter] public bool ShowLabel { get; set; }
+
+    private string SizeClass => Size switch
+    {
+        ProviderIconSize.Tiny => "provider-icon-tiny",
+        ProviderIconSize.Small => "provider-icon-small",
+        ProviderIconSize.Medium => "provider-icon-medium",
+        ProviderIconSize.Large => "provider-icon-large",
+        _ => "provider-icon-small"
+    };
+
+    private int GetSize() => Size switch
+    {
+        ProviderIconSize.Tiny => 12,
+        ProviderIconSize.Small => 16,
+        ProviderIconSize.Medium => 20,
+        ProviderIconSize.Large => 24,
+        _ => 16
+    };
+
+    private string GetDisplayName() => ProviderName?.ToLowerInvariant() switch
+    {
+        "anthropic" => "Anthropic",
+        "openai" => "OpenAI",
+        "google" or "gemini" => "Google",
+        "deepseek" => "DeepSeek",
+        "mistral" => "Mistral",
+        "cohere" => "Cohere",
+        "together" => "Together",
+        "local" or "ollama" => "Local",
+        "azure" => "Azure",
+        "aws" or "bedrock" => "AWS",
+        _ => ProviderName ?? "Unknown"
+    };
+
+    private string GetProviderSvg() => ProviderName?.ToLowerInvariant() switch
+    {
+        "anthropic" => AnthropicIcon,
+        "openai" => OpenAIIcon,
+        "google" or "gemini" => GoogleIcon,
+        "deepseek" => DeepSeekIcon,
+        "mistral" => MistralIcon,
+        "cohere" => CohereIcon,
+        "together" => TogetherIcon,
+        "local" or "ollama" => LocalIcon,
+        "azure" => AzureIcon,
+        "aws" or "bedrock" => AWSIcon,
+        _ => DefaultIcon
+    };
+
+    // Anthropic logo - stylized brain/wave pattern
+    private const string AnthropicIcon = "<path fill=\"#D97757\" d=\"M17.3 3H12L6.7 21h3.4l1.1-3.8h5.6l1.1 3.8h3.4L17.3 3zm-5 11.4l1.7-6 1.7 6h-3.4z\"/>";
+
+    // OpenAI logo - hexagonal shape
+    private const string OpenAIIcon = "<path fill=\"#00A67E\" d=\"M22.2 11.3c.4-1.1.4-2.4 0-3.5-.4-1.1-1.1-2-2-2.7-.9-.7-2-.9-3.1-.8-1.1.1-2.1.6-2.9 1.3-.8-.7-1.8-1.2-2.9-1.3-1.1-.1-2.2.1-3.1.8-.9.7-1.6 1.6-2 2.7-.4 1.1-.4 2.4 0 3.5-.6.5-1.1 1.2-1.4 2-.3.8-.4 1.6-.3 2.4.1.8.4 1.6.9 2.3.5.7 1.1 1.2 1.8 1.6-.1.8.1 1.6.5 2.3.4.7 1 1.3 1.7 1.7.7.4 1.5.6 2.3.5.8-.1 1.5-.4 2.2-.9.7.5 1.4.8 2.2.9.8.1 1.6-.1 2.3-.5.7-.4 1.3-1 1.7-1.7.4-.7.6-1.5.5-2.3.7-.4 1.3-.9 1.8-1.6.5-.7.8-1.5.9-2.3.1-.8 0-1.6-.3-2.4-.4-.8-.9-1.5-1.5-2zM12 16.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5z\"/>";
+
+    // Google/Gemini logo - multicolor G
+    private const string GoogleIcon = "<path fill=\"#4285F4\" d=\"M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z\"/><path fill=\"#34A853\" d=\"M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z\"/><path fill=\"#FBBC05\" d=\"M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z\"/><path fill=\"#EA4335\" d=\"M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z\"/>";
+
+    // DeepSeek logo - stylized DS
+    private const string DeepSeekIcon = "<rect fill=\"#0066FF\" x=\"2\" y=\"2\" width=\"20\" height=\"20\" rx=\"4\"/><text fill=\"#fff\" x=\"12\" y=\"16\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">DS</text>";
+
+    // Mistral logo - wind/wave pattern
+    private const string MistralIcon = "<rect fill=\"#F7941D\" x=\"3\" y=\"4\" width=\"4\" height=\"16\"/><rect fill=\"#F7941D\" x=\"10\" y=\"8\" width=\"4\" height=\"12\"/><rect fill=\"#F7941D\" x=\"17\" y=\"4\" width=\"4\" height=\"16\"/><rect fill=\"#000\" x=\"3\" y=\"4\" width=\"4\" height=\"4\"/><rect fill=\"#000\" x=\"10\" y=\"8\" width=\"4\" height=\"4\"/><rect fill=\"#000\" x=\"17\" y=\"4\" width=\"4\" height=\"4\"/>";
+
+    // Cohere logo - stylized C
+    private const string CohereIcon = "<circle fill=\"#D18EE2\" cx=\"12\" cy=\"12\" r=\"10\"/><path fill=\"#fff\" d=\"M12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6c1.3 0 2.5-.4 3.5-1.1l-1.7-2.4c-.5.3-1.1.5-1.8.5-1.7 0-3-1.3-3-3s1.3-3 3-3c.7 0 1.3.2 1.8.5l1.7-2.4C14.5 6.4 13.3 6 12 6z\"/>";
+
+    // Together AI logo - connected nodes
+    private const string TogetherIcon = "<circle fill=\"#0066FF\" cx=\"6\" cy=\"12\" r=\"3\"/><circle fill=\"#0066FF\" cx=\"18\" cy=\"6\" r=\"3\"/><circle fill=\"#0066FF\" cx=\"18\" cy=\"18\" r=\"3\"/><line stroke=\"#0066FF\" stroke-width=\"2\" x1=\"8\" y1=\"11\" x2=\"16\" y2=\"7\"/><line stroke=\"#0066FF\" stroke-width=\"2\" x1=\"8\" y1=\"13\" x2=\"16\" y2=\"17\"/>";
+
+    // Local/Ollama - computer icon
+    private const string LocalIcon = "<path fill=\"var(--icon-base, #808080)\" d=\"M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z\"/>";
+
+    // Azure logo - stylized A
+    private const string AzureIcon = "<path fill=\"#0089D6\" d=\"M13.05 4.24l-4.95 14.52h3.47l.94-2.94h4.98l.93 2.94h3.58L17.05 4.24h-4zm.83 8.84l1.62-5.06 1.62 5.06h-3.24z\"/><path fill=\"#0089D6\" d=\"M7 4l-5 14h3l.8-2.5h4.4L11 18h3L9 4H7zm.7 8.5l1.3-4 1.3 4H7.7z\"/>";
+
+    // AWS logo
+    private const string AWSIcon = "<path fill=\"#FF9900\" d=\"M6.5 12.5c.4.1.7.2 1.2.2.6 0 1.2-.1 1.8-.3.3-.1.5-.2.7-.4.1-.1.2-.2.2-.3 0-.1 0-.2-.1-.3-.2-.2-.5-.1-.8 0-.5.2-1.1.3-1.7.3-.4 0-.8-.1-1.2-.2-.3-.1-.6-.3-.8-.5-.2-.2-.3-.5-.3-.8v-.2c0-.3.1-.6.3-.8.2-.2.5-.4.8-.5.4-.1.8-.2 1.2-.2.6 0 1.2.1 1.7.3.3.1.6 0 .8-.2.1-.1.1-.2.1-.3 0-.1-.1-.2-.2-.3-.2-.2-.5-.3-.7-.4-.6-.2-1.2-.3-1.8-.3-.5 0-1 .1-1.5.2-.5.2-.9.4-1.2.8-.3.4-.5.9-.5 1.4v.2c0 .5.2 1 .5 1.4.3.4.7.6 1.2.8.5.2 1 .3 1.5.3z\"/><path fill=\"#FF9900\" d=\"M12 15.5c2.6-.6 4.8-1.7 6.5-3.2.2-.2.3-.4.3-.6 0-.2-.1-.4-.2-.5-.2-.2-.5-.2-.7 0-1.5 1.4-3.5 2.4-5.9 3-.3.1-.5.3-.5.6 0 .2.1.4.2.5.2.2.5.3.8.2h-.5z\"/><path fill=\"#252F3E\" d=\"M17 8.5l-1.5-4h-1l1.5 4H17zm-5 0l1.5-4h1L13 8.5h-1z\"/>";
+
+    // Default AI icon
+    private const string DefaultIcon = "<path fill=\"var(--icon-base, #808080)\" d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.79 0 1.5-.71 1.5-1.5S8.79 9 8 9s-1.5.71-1.5 1.5S7.21 12 8 12zm8 0c.79 0 1.5-.71 1.5-1.5S16.79 9 16 9s-1.5.71-1.5 1.5.71 1.5 1.5 1.5zm-4 5c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z\"/>";
+}

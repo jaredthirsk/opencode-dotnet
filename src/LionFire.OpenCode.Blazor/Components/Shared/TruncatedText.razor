@@ -1,0 +1,110 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+
+<div class="truncated-text @Class">
+    @if (IsTruncated && !IsExpanded)
+    {
+        <div class="truncated-content">
+            @GetTruncatedContent()
+        </div>
+        <button class="expand-button" @onclick="Expand">
+            Show more
+        </button>
+    }
+    else if (IsTruncated && IsExpanded)
+    {
+        <div class="full-content">
+            @if (ChildContent != null)
+            {
+                @ChildContent
+            }
+            else
+            {
+                @Text
+            }
+        </div>
+        <button class="expand-button" @onclick="Collapse">
+            Show less
+        </button>
+    }
+    else
+    {
+        <div class="full-content">
+            @if (ChildContent != null)
+            {
+                @ChildContent
+            }
+            else
+            {
+                @Text
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int MaxLength { get; set; } = 500;
+    [Parameter] public string? Class { get; set; }
+
+    private bool IsExpanded { get; set; }
+
+    private bool IsTruncated => !string.IsNullOrEmpty(Text) && Text.Length > MaxLength;
+
+    private string GetTruncatedContent()
+    {
+        if (string.IsNullOrEmpty(Text)) return "";
+        if (Text.Length <= MaxLength) return Text;
+
+        // Find a good break point (word boundary or newline)
+        var truncateAt = MaxLength;
+        var newlinePos = Text.LastIndexOf('\n', MaxLength);
+        var spacePos = Text.LastIndexOf(' ', MaxLength);
+
+        if (newlinePos > MaxLength - 50)
+            truncateAt = newlinePos;
+        else if (spacePos > MaxLength - 50)
+            truncateAt = spacePos;
+
+        return Text[..truncateAt] + "...";
+    }
+
+    private void Expand()
+    {
+        IsExpanded = true;
+    }
+
+    private void Collapse()
+    {
+        IsExpanded = false;
+    }
+}
+
+<style>
+    .truncated-text {
+        position: relative;
+    }
+
+    .truncated-content,
+    .full-content {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .expand-button {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 4px 8px;
+        background: none;
+        border: none;
+        color: var(--text-interactive-base);
+        font-size: var(--font-size-small);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: background-color 0.15s;
+    }
+
+    .expand-button:hover {
+        background: var(--surface-base-hover);
+    }
+</style>

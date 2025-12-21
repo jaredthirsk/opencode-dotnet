@@ -1,0 +1,148 @@
+@* Drag-drop file attachment dialog *@
+
+<div class="file-attachment-dialog" @ondrop="HandleDrop" @ondragover="AllowDrop" @ondragleave="HandleDragLeave">
+    <div class="dialog-overlay" @onclick="Close"></div>
+
+    <div class="dialog-content">
+        <div class="dialog-header">
+            <h3>Attach Files</h3>
+            <button @onclick="Close" class="btn-close">×</button>
+        </div>
+
+        <div class="dialog-body">
+            <div class="drop-zone @(isDragOver ? "drag-over" : "")">
+                <InputFile OnChange="HandleFileInput"
+                           multiple
+                           hidden
+                           id="file-input" />
+
+                <div class="drop-instructions">
+                    <p class="drop-icon">📁</p>
+                    <p class="drop-text">Drop files here or click to browse</p>
+                    <p class="drop-hint">You can attach multiple files</p>
+                </div>
+
+                <label for="file-input" class="btn-browse">
+                    Browse Files
+                </label>
+            </div>
+
+            @if (selectedFiles.Any())
+            {
+                <div class="selected-files">
+                    <h4>Selected Files</h4>
+                    @foreach (var file in selectedFiles)
+                    {
+                        <div class="file-item">
+                            <FileIcon FileName="@file.Name" />
+                            <div class="file-info">
+                                <span class="file-name">@file.Name</span>
+                                <span class="file-size">@FormatFileSize(file.Size)</span>
+                            </div>
+                            <button @onclick="() => RemoveFile(file.Name)" class="btn-remove">×</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="dialog-footer">
+            <button @onclick="Close" class="btn-cancel">Cancel</button>
+            <button @onclick="ConfirmSelection" disabled="@(!selectedFiles.Any())" class="btn-confirm">
+                Attach @(selectedFiles.Count > 0 ? $"({selectedFiles.Count})" : "")
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<LocalFileInfo> selectedFiles = new();
+    private bool isDragOver = false;
+
+    /// <summary>
+    /// Callback when files are selected and confirmed.
+    /// Uses shared AttachedFile from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    [Parameter]
+    public EventCallback<List<AttachedFile>> OnFilesSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClosed { get; set; }
+
+    private void AllowDrop(DragEventArgs e)
+    {
+        e.DataTransfer.DropEffect = "copy";
+        isDragOver = true;
+    }
+
+    private void HandleDragLeave(DragEventArgs e)
+    {
+        isDragOver = false;
+    }
+
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        isDragOver = false;
+        // TODO: Get files from drag event
+        // TODO: Add to selected files
+        // TODO: Read file contents
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleFileInput(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles())
+        {
+            selectedFiles.Add(new LocalFileInfo
+            {
+                Name = file.Name,
+                Size = file.Size,
+                Modified = DateTime.Now
+            });
+        }
+        await Task.CompletedTask;
+    }
+
+    private void RemoveFile(string fileName)
+    {
+        selectedFiles.RemoveAll(f => f.Name == fileName);
+    }
+
+    private async Task ConfirmSelection()
+    {
+        var attachedFiles = new List<AttachedFile>();
+
+        foreach (var file in selectedFiles)
+        {
+            attachedFiles.Add(new AttachedFile
+            {
+                Name = file.Name,
+                Size = file.Size
+            });
+        }
+
+        await OnFilesSelected.InvokeAsync(attachedFiles);
+    }
+
+    private async Task Close()
+    {
+        selectedFiles.Clear();
+        await OnClosed.InvokeAsync();
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024):F1} MB";
+    }
+
+    private class LocalFileInfo
+    {
+        public string? Name { get; set; }
+        public long Size { get; set; }
+        public DateTime Modified { get; set; }
+    }
+}

@@ -1,0 +1,141 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+@implements IDisposable
+
+<span class="typewriter @(ShowCursor ? "typewriter-with-cursor" : "") @Class">@_displayedText@if (ShowCursor && _isAnimating){<span class="typewriter-cursor">|</span>}</span>
+
+@code {
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public int SpeedMs { get; set; } = 30;
+    [Parameter] public bool ShowCursor { get; set; } = true;
+    [Parameter] public bool AutoStart { get; set; } = true;
+    [Parameter] public bool RespectReducedMotion { get; set; } = true;
+    [Parameter] public EventCallback OnComplete { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string _displayedText = "";
+    private string _previousText = "";
+    private bool _isAnimating;
+    private CancellationTokenSource? _cts;
+    private bool _reducedMotion;
+
+    protected override void OnInitialized()
+    {
+        // Check for reduced motion preference via CSS media query
+        // For server-side Blazor, we'll default to respecting it if RespectReducedMotion is true
+        // The actual media query check would require JS interop
+        _reducedMotion = false; // Default - could be enhanced with JS interop
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // If text changed, restart animation
+        if (Text != _previousText)
+        {
+            _previousText = Text;
+
+            if (AutoStart)
+            {
+                await StartAnimation();
+            }
+        }
+    }
+
+    public async Task StartAnimation()
+    {
+        // Cancel any existing animation
+        StopAnimation();
+
+        if (string.IsNullOrEmpty(Text))
+        {
+            _displayedText = "";
+            return;
+        }
+
+        // If reduced motion is preferred, show text immediately
+        if (RespectReducedMotion && _reducedMotion)
+        {
+            _displayedText = Text;
+            await OnComplete.InvokeAsync();
+            return;
+        }
+
+        _cts = new CancellationTokenSource();
+        _isAnimating = true;
+        _displayedText = "";
+
+        try
+        {
+            foreach (var c in Text)
+            {
+                if (_cts.Token.IsCancellationRequested)
+                    break;
+
+                _displayedText += c;
+                StateHasChanged();
+
+                await Task.Delay(SpeedMs, _cts.Token);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Animation was cancelled, that's fine
+        }
+        finally
+        {
+            _isAnimating = false;
+            StateHasChanged();
+        }
+
+        if (!_cts.Token.IsCancellationRequested)
+        {
+            await OnComplete.InvokeAsync();
+        }
+    }
+
+    public void StopAnimation()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+        _isAnimating = false;
+    }
+
+    public void ShowAllText()
+    {
+        StopAnimation();
+        _displayedText = Text;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        StopAnimation();
+    }
+}
+
+<style>
+    .typewriter {
+        font-family: inherit;
+    }
+
+    .typewriter-cursor {
+        display: inline-block;
+        font-weight: normal;
+        color: var(--text-base);
+        animation: blink 1s step-end infinite;
+        margin-left: 1px;
+    }
+
+    @@keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+
+    /* Respect reduced motion preference */
+    @@media (prefers-reduced-motion: reduce) {
+        .typewriter-cursor {
+            animation: none;
+            opacity: 1;
+        }
+    }
+</style>

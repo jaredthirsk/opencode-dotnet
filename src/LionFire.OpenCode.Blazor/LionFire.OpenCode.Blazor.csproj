@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <PackageId>LionFire.OpenCode.Blazor</PackageId>
+    <PackageVersion>0.1.0</PackageVersion>
+    <Title>LionFire OpenCode Blazor</Title>
+    <Description>Blazor UI components for OpenCode - faithful replication of opencode web interface</Description>
+    <Authors>LionFire</Authors>
+    <License>MIT</License>
+    <RepositoryUrl>https://github.com/lionfire/opencode-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>opencode;blazor;ui;components;ide</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.0" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageReference Include="MudBlazor" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Conditional reference to LionFire.AgUi.Blazor -->
+    <!-- Check if ag-ui-blazor exists as a local repo -->
+    <ProjectReference Include="../../../ag-ui-blazor/src/LionFire.AgUi.Blazor/LionFire.AgUi.Blazor.csproj" Condition="Exists('../../../ag-ui-blazor/src/LionFire.AgUi.Blazor/LionFire.AgUi.Blazor.csproj')" />
+    <!-- Fallback to NuGet if local repo doesn't exist -->
+    <PackageReference Include="LionFire.AgUi.Blazor" Version="0.1.0" Condition="!Exists('../../../ag-ui-blazor/src/LionFire.AgUi.Blazor/LionFire.AgUi.Blazor.csproj')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../LionFire.OpenCode.Serve/LionFire.OpenCode.Serve.csproj" />
+  </ItemGroup>
+
+</Project>

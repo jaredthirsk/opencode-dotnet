@@ -1,0 +1,92 @@
+@* xterm.js integration for PTY terminal *@
+@implements IAsyncDisposable
+
+<div class="pty-terminal">
+    <div class="terminal-header">
+        <h4>Terminal</h4>
+        <div class="terminal-controls">
+            <button @onclick="ClearTerminal" class="btn-clear" title="Clear terminal">Clear</button>
+            <button @onclick="CloseTerminal" class="btn-close" title="Close terminal">Close</button>
+        </div>
+    </div>
+
+    <div class="terminal-container" @ref="terminalElement"></div>
+
+    <div class="terminal-input">
+        <input type="text"
+               @bind="commandInput"
+               @onkeydown="HandleCommandKeyDown"
+               placeholder="Enter command..."
+               class="terminal-input-field" />
+    </div>
+</div>
+
+@code {
+    private ElementReference terminalElement;
+    private string commandInput = "";
+    private string? sessionId;
+    private string? terminalId;
+
+    [Parameter]
+    public string? SessionId
+    {
+        get => sessionId;
+        set => sessionId = value;
+    }
+
+    [Parameter]
+    public EventCallback<string> OnTerminalOutput { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // TODO: Initialize xterm.js in terminalElement
+            // TODO: Connect to PTY backend via WebSocket or SignalR
+            // TODO: Set up input/output handlers
+            // TODO: Load terminal preferences (theme, font size, etc.)
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task HandleCommandKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendCommand(commandInput);
+            commandInput = "";
+        }
+    }
+
+    private async Task SendCommand(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+            return;
+
+        // TODO: Send command to PTY backend
+        // TODO: Display command in terminal
+        // TODO: Handle command execution and output
+        await OnTerminalOutput.InvokeAsync(command);
+    }
+
+    private async Task ClearTerminal()
+    {
+        // TODO: Clear terminal output via xterm.js
+        // TODO: Send clear command to PTY if needed
+        await Task.CompletedTask;
+    }
+
+    private async Task CloseTerminal()
+    {
+        // TODO: Close PTY connection
+        // TODO: Hide terminal
+        await Task.CompletedTask;
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        // TODO: Dispose xterm.js instance
+        // TODO: Close WebSocket/SignalR connection
+    }
+}

@@ -1,0 +1,60 @@
+@* Replicate message-part.tsx - individual message content block *@
+
+<div class="message-part message-part-@(Part?.Type?.ToLower() ?? "unknown")">
+    @switch (Part?.Type)
+    {
+        case "text":
+            <div class="message-text">
+                @((MarkupString)(Part.Content ?? ""))
+            </div>
+            break;
+
+        case "code":
+            <div class="message-code">
+                <pre><code>@(Part.Content)</code></pre>
+            </div>
+            break;
+
+        case "markdown":
+            <div class="message-markdown">
+                @((MarkupString)(Part.Content ?? ""))
+            </div>
+            break;
+
+        case "diff":
+            <div class="message-diff">
+                <DiffViewer DiffContent="@(Part.Content ?? "")" />
+            </div>
+            break;
+
+        case "error":
+            <div class="message-error alert alert-danger">
+                @(Part.Content)
+            </div>
+            break;
+
+        default:
+            <div class="message-unknown">
+                @(Part?.Content)
+            </div>
+            break;
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// The message part data to render.
+    /// Uses shared MessagePartData from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    [Parameter]
+    public MessagePartData? Part { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Parse and format message content based on type
+        // TODO: Handle syntax highlighting for code blocks
+        // TODO: Process markdown with proper escaping
+        // TODO: Render diffs with highlighting
+        await Task.CompletedTask;
+    }
+}

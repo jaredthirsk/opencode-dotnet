@@ -1,0 +1,58 @@
+@* Replicate session-turn.tsx from /dv/opencode - displays conversation turns *@
+
+<div class="session-turn">
+    @if (sessionTurns != null)
+    {
+        @foreach (var turn in sessionTurns)
+        {
+            <div class="turn-container" data-turn-id="@turn.Id">
+                <div class="turn-header">
+                    <span class="turn-role">@turn.Role</span>
+                    <span class="turn-timestamp">@turn.Timestamp.ToString("g")</span>
+                </div>
+
+                <div class="turn-content">
+                    @foreach (var part in turn.Parts)
+                    {
+                        <MessagePart Part="part" />
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(turn.DiffSummary))
+                {
+                    <div class="turn-diff">
+                        <DiffSummary Summary="turn.DiffSummary" />
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<TurnViewModel>? sessionTurns;
+
+    [Parameter]
+    public string? SessionId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load session turns from service
+        // TODO: Initialize message parts with proper formatting
+        // TODO: Set up real-time updates via SignalR if needed
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// View model for displaying turn data.
+    /// Uses shared MessagePartData from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    private class TurnViewModel
+    {
+        public string? Id { get; set; }
+        public string? Role { get; set; }
+        public DateTime Timestamp { get; set; }
+        public List<MessagePartData> Parts { get; set; } = new();
+        public string? DiffSummary { get; set; }
+    }
+}

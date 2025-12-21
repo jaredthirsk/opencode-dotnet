@@ -1,0 +1,104 @@
+/* OpenCode Theme - Match OpenCode color variables */
+
+:root {
+  /* Primary Colors */
+  --oc-primary: #0066cc;
+  --oc-primary-light: #0077ff;
+  --oc-primary-dark: #0052a3;
+
+  /* Accent Colors */
+  --oc-accent-success: #16a34a;
+  --oc-accent-warning: #ea580c;
+  --oc-accent-error: #dc2626;
+  --oc-accent-info: #0284c7;
+
+  /* Neutral Colors */
+  --oc-bg-primary: #ffffff;
+  --oc-bg-secondary: #f3f4f6;
+  --oc-bg-tertiary: #e5e7eb;
+
+  --oc-text-primary: #1f2937;
+  --oc-text-secondary: #6b7280;
+  --oc-text-tertiary: #9ca3af;
+
+  /* Dark Mode */
+  --oc-dark-bg-primary: #1a1a1a;
+  --oc-dark-bg-secondary: #2d2d2d;
+  --oc-dark-bg-tertiary: #3d3d3d;
+
+  --oc-dark-text-primary: #ffffff;
+  --oc-dark-text-secondary: #d1d5db;
+  --oc-dark-text-tertiary: #9ca3af;
+
+  /* Diff Colors */
+  --oc-diff-added: #d1fae5;
+  --oc-diff-added-text: #065f46;
+  --oc-diff-removed: #fee2e2;
+  --oc-diff-removed-text: #7f1d1d;
+  --oc-diff-context: #f9fafb;
+  --oc-diff-hunk: #e0e7ff;
+
+  /* Borders */
+  --oc-border-light: #e5e7eb;
+  --oc-border-dark: #374151;
+
+  /* Spacing */
+  --oc-spacing-xs: 4px;
+  --oc-spacing-sm: 8px;
+  --oc-spacing-md: 12px;
+  --oc-spacing-lg: 16px;
+  --oc-spacing-xl: 24px;
+  --oc-spacing-2xl: 32px;
+
+  /* Typography */
+  --oc-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --oc-font-mono: 'Fira Code', 'Source Code Pro', 'JetBrains Mono', monospace;
+  --oc-font-size-sm: 12px;
+  --oc-font-size-base: 14px;
+  --oc-font-size-lg: 16px;
+  --oc-font-size-xl: 18px;
+  --oc-font-size-2xl: 20px;
+
+  /* Shadows */
+  --oc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --oc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --oc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Z-index */
+  --oc-z-dropdown: 100;
+  --oc-z-modal: 1000;
+  --oc-z-tooltip: 1001;
+
+  /* Transitions */
+  --oc-transition-fast: 150ms;
+  --oc-transition-base: 250ms;
+  --oc-transition-slow: 350ms;
+}
+
+/* Dark Mode Override */
+[data-theme="dark"] {
+  --oc-bg-primary: var(--oc-dark-bg-primary);
+  --oc-bg-secondary: var(--oc-dark-bg-secondary);
+  --oc-bg-tertiary: var(--oc-dark-bg-tertiary);
+
+  --oc-text-primary: var(--oc-dark-text-primary);
+  --oc-text-secondary: var(--oc-dark-text-secondary);
+  --oc-text-tertiary: var(--oc-dark-text-tertiary);
+
+  --oc-border-light: var(--oc-border-dark);
+}
+
+/* Base Styles */
+body {
+  font-family: var(--oc-font-family);
+  font-size: var(--oc-font-size-base);
+  color: var(--oc-text-primary);
+  background-color: var(--oc-bg-primary);
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* TODO: Component-specific styles moved to components.css */

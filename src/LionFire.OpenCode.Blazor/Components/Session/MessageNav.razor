@@ -1,0 +1,169 @@
+@namespace LionFire.OpenCode.Blazor.Components.Session
+
+<div class="message-nav @Class">
+    <div class="nav-buttons">
+        <button class="nav-button"
+                @onclick="JumpToTop"
+                disabled="@(CurrentIndex <= 0)"
+                title="Jump to first message">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+                <path fill="currentColor" d="M7.41 11.41L12 6.83l4.59 4.58L18 10l-6-6-6 6z" transform="translate(0,-4)"/>
+            </svg>
+        </button>
+
+        <button class="nav-button"
+                @onclick="PreviousMessage"
+                disabled="@(CurrentIndex <= 0)"
+                title="Previous message">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+            </svg>
+        </button>
+
+        <span class="nav-position">
+            @if (TotalMessages > 0)
+            {
+                <span class="current">@(CurrentIndex + 1)</span>
+                <span class="separator">/</span>
+                <span class="total">@TotalMessages</span>
+            }
+            else
+            {
+                <span class="empty">--</span>
+            }
+        </span>
+
+        <button class="nav-button"
+                @onclick="NextMessage"
+                disabled="@(CurrentIndex >= TotalMessages - 1)"
+                title="Next message">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+            </svg>
+        </button>
+
+        <button class="nav-button"
+                @onclick="JumpToBottom"
+                disabled="@(CurrentIndex >= TotalMessages - 1)"
+                title="Jump to last message">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" transform="translate(0,4)"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CurrentIndex { get; set; }
+    [Parameter] public int TotalMessages { get; set; }
+    [Parameter] public EventCallback<int> OnNavigate { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private async Task PreviousMessage()
+    {
+        if (CurrentIndex > 0)
+        {
+            await OnNavigate.InvokeAsync(CurrentIndex - 1);
+        }
+    }
+
+    private async Task NextMessage()
+    {
+        if (CurrentIndex < TotalMessages - 1)
+        {
+            await OnNavigate.InvokeAsync(CurrentIndex + 1);
+        }
+    }
+
+    private async Task JumpToTop()
+    {
+        if (CurrentIndex > 0)
+        {
+            await OnNavigate.InvokeAsync(0);
+        }
+    }
+
+    private async Task JumpToBottom()
+    {
+        if (CurrentIndex < TotalMessages - 1)
+        {
+            await OnNavigate.InvokeAsync(TotalMessages - 1);
+        }
+    }
+}
+
+<style>
+    .message-nav {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .nav-buttons {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-md);
+        padding: 2px;
+    }
+
+    .nav-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--icon-base);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background-color 0.15s, color 0.15s;
+    }
+
+    .nav-button:hover:not(:disabled) {
+        background: var(--surface-base-hover);
+        color: var(--icon-strong-base);
+    }
+
+    .nav-button:active:not(:disabled) {
+        background: var(--surface-base-active);
+    }
+
+    .nav-button:disabled {
+        color: var(--icon-weak);
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .nav-position {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 8px;
+        font-size: var(--font-size-small);
+        font-family: var(--font-family-mono);
+        color: var(--text-weak);
+        min-width: 48px;
+        justify-content: center;
+    }
+
+    .nav-position .current {
+        color: var(--text-base);
+        font-weight: var(--font-weight-medium);
+    }
+
+    .nav-position .separator {
+        color: var(--text-weaker);
+    }
+
+    .nav-position .total {
+        color: var(--text-weaker);
+    }
+
+    .nav-position .empty {
+        color: var(--text-weaker);
+    }
+</style>

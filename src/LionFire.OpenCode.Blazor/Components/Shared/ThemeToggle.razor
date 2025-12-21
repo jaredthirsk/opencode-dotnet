@@ -1,0 +1,94 @@
+@namespace LionFire.OpenCode.Blazor.Components.Shared
+@using LionFire.OpenCode.Blazor.Theming
+@inject OpenCodeThemeService ThemeService
+
+<div class="theme-toggle">
+    <button @onclick="ToggleTheme" class="toggle-button" title="@GetTooltip()">
+        <svg class="theme-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            @if (ThemeService.IsDarkMode)
+            {
+                <!-- Moon icon -->
+                <path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"
+                      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            }
+            else
+            {
+                <!-- Sun icon -->
+                <path d="M12 2.25v2.25M12 19.5v2.25M4.219 4.219l1.591 1.591M18.19 18.19l1.591 1.591M2.25 12h2.25M19.5 12h2.25M4.219 19.781l1.591-1.591M18.19 5.81l1.591-1.591"
+                      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="3.75" stroke="currentColor" stroke-width="1.5"/>
+            }
+        </svg>
+    </button>
+</div>
+
+@code {
+    private bool _isInitialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+            ThemeService.OnThemeChanged += OnThemeChanged;
+            _isInitialized = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleThemeAsync();
+    }
+
+    private void OnThemeChanged(bool isDark)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetTooltip() => ThemeService.IsDarkMode
+        ? "Switch to light mode"
+        : "Switch to dark mode";
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= OnThemeChanged;
+    }
+}
+
+<style>
+    .theme-toggle {
+        display: flex;
+        align-items: center;
+    }
+
+    .toggle-button {
+        width: 32px;
+        height: 32px;
+        padding: 6px;
+        border: none;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--icon-base);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s, color 0.15s;
+    }
+
+    .toggle-button:hover {
+        background: var(--surface-base-hover);
+        color: var(--icon-hover);
+    }
+
+    .toggle-button:active {
+        background: var(--surface-base-active);
+        color: var(--icon-active);
+    }
+
+    .theme-icon {
+        width: 20px;
+        height: 20px;
+    }
+</style>

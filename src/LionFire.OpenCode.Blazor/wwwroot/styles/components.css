@@ -1,0 +1,336 @@
+/* Component-specific styles */
+
+/* TODO: Layout Components */
+.opencode-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+.opencode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--oc-spacing-lg);
+  background-color: var(--oc-bg-secondary);
+  border-bottom: 1px solid var(--oc-border-light);
+  gap: var(--oc-spacing-xl);
+}
+
+.layout-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: var(--oc-spacing-sm);
+}
+
+.opencode-sidebar {
+  border-right: 1px solid var(--oc-border-light);
+  overflow-y: auto;
+  background-color: var(--oc-bg-secondary);
+  transition: width 200ms ease;
+}
+
+.layout-center {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.layout-right {
+  width: 350px;
+  border-left: 1px solid var(--oc-border-light);
+  overflow-y: auto;
+  background-color: var(--oc-bg-secondary);
+}
+
+.layout-bottom {
+  height: 200px;
+  border-top: 1px solid var(--oc-border-light);
+  overflow: hidden;
+  background-color: var(--oc-bg-primary);
+}
+
+/* TODO: File Tree Styles */
+.file-tree {
+  padding: var(--oc-spacing-sm);
+}
+
+.file-tree-node {
+  margin: var(--oc-spacing-xs) 0;
+}
+
+.file-tree-node-item {
+  padding: var(--oc-spacing-sm);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color var(--oc-transition-fast);
+}
+
+.file-tree-node-item:hover {
+  background-color: var(--oc-bg-tertiary);
+}
+
+.file-tree-node-item.active {
+  background-color: var(--oc-primary);
+  color: white;
+}
+
+/* TODO: File Tabs Styles */
+.file-tabs {
+  display: flex;
+  align-items: center;
+  background-color: var(--oc-bg-secondary);
+  border-bottom: 1px solid var(--oc-border-light);
+  overflow-x: auto;
+  padding: var(--oc-spacing-xs);
+}
+
+.tabs-container {
+  display: flex;
+  gap: var(--oc-spacing-xs);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--oc-spacing-sm);
+  padding: var(--oc-spacing-sm) var(--oc-spacing-md);
+  background-color: var(--oc-bg-primary);
+  border: 1px solid var(--oc-border-light);
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--oc-transition-fast);
+}
+
+.tab:hover {
+  background-color: var(--oc-bg-secondary);
+}
+
+.tab.active {
+  background-color: var(--oc-bg-primary);
+  border-bottom-color: var(--oc-primary);
+}
+
+.tab-close {
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--oc-text-secondary);
+  transition: color var(--oc-transition-fast);
+}
+
+.tab-close:hover {
+  color: var(--oc-text-primary);
+}
+
+/* TODO: File Viewer Styles */
+.file-viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-editor {
+  flex: 1;
+  overflow: auto;
+}
+
+.code-editor {
+  width: 100%;
+  height: 100%;
+  padding: var(--oc-spacing-md);
+  font-family: var(--oc-font-mono);
+  font-size: var(--oc-font-size-sm);
+  border: none;
+  background-color: var(--oc-bg-primary);
+  color: var(--oc-text-primary);
+  resize: none;
+}
+
+/* TODO: Diff Viewer Styles */
+.diff-viewer {
+  padding: var(--oc-spacing-md);
+  overflow-y: auto;
+}
+
+.diff-line {
+  display: flex;
+  font-family: var(--oc-font-mono);
+  font-size: var(--oc-font-size-sm);
+  padding: var(--oc-spacing-xs) var(--oc-spacing-sm);
+  line-height: 1.5;
+}
+
+.diff-line-added {
+  background-color: var(--oc-diff-added);
+  color: var(--oc-diff-added-text);
+}
+
+.diff-line-removed {
+  background-color: var(--oc-diff-removed);
+  color: var(--oc-diff-removed-text);
+}
+
+.diff-line-context {
+  background-color: var(--oc-diff-context);
+  color: var(--oc-text-primary);
+}
+
+/* TODO: Input Styles */
+.prompt-input {
+  padding: var(--oc-spacing-md);
+  background-color: var(--oc-bg-primary);
+  border-top: 1px solid var(--oc-border-light);
+}
+
+.prompt-textarea {
+  width: 100%;
+  padding: var(--oc-spacing-md);
+  font-family: var(--oc-font-family);
+  font-size: var(--oc-font-size-base);
+  border: 1px solid var(--oc-border-light);
+  border-radius: 4px;
+  background-color: var(--oc-bg-primary);
+  color: var(--oc-text-primary);
+  resize: vertical;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: var(--oc-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* TODO: Terminal Styles */
+.pty-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.terminal-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--oc-spacing-md);
+  font-family: var(--oc-font-mono);
+  font-size: var(--oc-font-size-sm);
+}
+
+/* TODO: Button Styles */
+button {
+  padding: var(--oc-spacing-sm) var(--oc-spacing-md);
+  background-color: var(--oc-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--oc-font-size-base);
+  transition: background-color var(--oc-transition-fast);
+}
+
+button:hover {
+  background-color: var(--oc-primary-light);
+}
+
+button:disabled {
+  background-color: var(--oc-bg-tertiary);
+  color: var(--oc-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* TODO: Empty State Styles */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--oc-spacing-2xl);
+  color: var(--oc-text-tertiary);
+  text-align: center;
+}
+
+/* TODO: Dropdown Styles */
+.selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--oc-bg-primary);
+  border: 1px solid var(--oc-border-light);
+  border-radius: 4px;
+  box-shadow: var(--oc-shadow-lg);
+  z-index: var(--oc-z-dropdown);
+  margin-top: var(--oc-spacing-sm);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  padding: var(--oc-spacing-md);
+  cursor: pointer;
+  transition: background-color var(--oc-transition-fast);
+}
+
+.dropdown-item:hover {
+  background-color: var(--oc-bg-secondary);
+}
+
+.dropdown-item.active {
+  background-color: var(--oc-primary);
+  color: white;
+}
+
+/* TODO: Modal/Dialog Styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: var(--oc-z-modal);
+}
+
+.dialog-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--oc-bg-primary);
+  border-radius: 8px;
+  box-shadow: var(--oc-shadow-lg);
+  z-index: calc(var(--oc-z-modal) + 1);
+  min-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.dialog-header {
+  padding: var(--oc-spacing-lg);
+  border-bottom: 1px solid var(--oc-border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-body {
+  padding: var(--oc-spacing-lg);
+}
+
+.dialog-footer {
+  padding: var(--oc-spacing-lg);
+  border-top: 1px solid var(--oc-border-light);
+  display: flex;
+  gap: var(--oc-spacing-md);
+  justify-content: flex-end;
+}
+
+/* TODO: Add more component styles as needed */

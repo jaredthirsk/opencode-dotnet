@@ -1,0 +1,52 @@
+@* Individual diff line renderer *@
+
+<div class="diff-line diff-line-@(Line?.Type?.ToLower() ?? "context")">
+    @if (showLineNumbers)
+    {
+        <div class="line-number left">@(Line?.LeftLineNum?.ToString() ?? "")</div>
+        <div class="line-number right">@(Line?.RightLineNum?.ToString() ?? "")</div>
+    }
+
+    <div class="line-prefix">
+        @switch (Line?.Type)
+        {
+            case "added":
+                <span class="prefix">+</span>
+                break;
+            case "removed":
+                <span class="prefix">-</span>
+                break;
+            case "context":
+                <span class="prefix"> </span>
+                break;
+            default:
+                <span class="prefix"> </span>
+                break;
+        }
+    </div>
+
+    <div class="line-content">
+        <code>@(Line?.Content)</code>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// The diff line data to display.
+    /// Uses shared DiffLineData from LionFire.OpenCode.Blazor.Models.
+    /// </summary>
+    [Parameter]
+    public DiffLineData? Line { get; set; }
+
+    [Parameter]
+    public bool ShowLineNumbers { get; set; } = true;
+
+    private bool showLineNumbers => ShowLineNumbers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Apply syntax highlighting if needed
+        // TODO: Handle code block formatting
+        await Task.CompletedTask;
+    }
+}

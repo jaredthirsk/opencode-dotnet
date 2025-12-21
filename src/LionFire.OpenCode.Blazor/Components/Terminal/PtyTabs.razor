@@ -1,0 +1,96 @@
+@* Multiple terminal tabs management *@
+
+<div class="pty-tabs">
+    <div class="tabs-header">
+        <div class="tabs-list">
+            @if (terminalTabs != null && terminalTabs.Any())
+            {
+                @foreach (var tab in terminalTabs)
+                {
+                    <div class="tab @(tab.Id == activeTabId ? "active" : "")"
+                         @onclick="() => SelectTab(tab.Id)">
+                        <span class="tab-icon">⌘</span>
+                        <span class="tab-name">@(tab.Name ?? $"Terminal {tab.Index}")</span>
+                        @if (tab.IsRunning)
+                        {
+                            <span class="tab-indicator running"></span>
+                        }
+                        <button class="tab-close" @onclick:stopPropagation="true" @onclick="() => CloseTab(tab.Id)">×</button>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="tabs-actions">
+            <button @onclick="AddNewTerminal" class="btn-add-tab" title="New terminal">+</button>
+        </div>
+    </div>
+
+    <div class="tabs-content">
+        @if (activeTab != null)
+        {
+            <PtyTerminal SessionId="@activeTab.SessionId" />
+        }
+    </div>
+</div>
+
+@code {
+    private List<TerminalTab>? terminalTabs;
+    private string? activeTabId;
+    private TerminalTab? activeTab;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load terminal tabs from session
+        // TODO: Create default terminal if none exist
+        // TODO: Restore active tab from preferences
+        await Task.CompletedTask;
+    }
+
+    private void SelectTab(string tabId)
+    {
+        activeTabId = tabId;
+        activeTab = terminalTabs?.FirstOrDefault(t => t.Id == tabId);
+        // TODO: Focus terminal input
+    }
+
+    private async Task AddNewTerminal()
+    {
+        // TODO: Create new PTY session
+        var newTab = new TerminalTab
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = Guid.NewGuid().ToString(),
+            Index = (terminalTabs?.Count ?? 0) + 1,
+            IsRunning = true
+        };
+
+        terminalTabs?.Add(newTab);
+        SelectTab(newTab.Id);
+        // TODO: Save terminals to session
+        await Task.CompletedTask;
+    }
+
+    private async Task CloseTab(string tabId)
+    {
+        // TODO: Close PTY connection
+        terminalTabs?.RemoveAll(t => t.Id == tabId);
+
+        if (tabId == activeTabId && terminalTabs?.Any() == true)
+        {
+            SelectTab(terminalTabs.First().Id);
+        }
+
+        // TODO: Save terminals to session
+        await Task.CompletedTask;
+    }
+
+    private class TerminalTab
+    {
+        public string? Id { get; set; }
+        public string? SessionId { get; set; }
+        public string? Name { get; set; }
+        public int Index { get; set; }
+        public bool IsRunning { get; set; }
+    }
+}

@@ -1,0 +1,131 @@
+@* Dropdown selector for switching between sessions *@
+
+<div class="session-selector">
+    <button class="selector-button" @onclick="ToggleDropdown" type="button">
+        <span class="selector-label">@(currentSessionName ?? "Select Session")</span>
+        <span class="selector-icon">▼</span>
+    </button>
+
+    @if (isDropdownOpen)
+    {
+        <div class="selector-dropdown">
+            <div class="dropdown-search">
+                <input type="text"
+                       placeholder="Search sessions..."
+                       @bind="searchQuery"
+                       @oninput="HandleSearch"
+                       @onkeydown="HandleKeyDown"
+                       class="dropdown-search-input" />
+            </div>
+
+            <div class="dropdown-list">
+                @if (filteredSessions != null && filteredSessions.Any())
+                {
+                    @foreach (var session in filteredSessions)
+                    {
+                        <div class="dropdown-item @(session.Id == selectedSessionId ? "active" : "")"
+                             @onclick="() => SelectSession(session.Id)">
+                            <span class="item-name">@(session.Name ?? $"Session {session.Id}")</span>
+                            <span class="item-date">@(session.CreatedAt.ToString("M/d/yy H:mm"))</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="dropdown-empty">No sessions found</p>
+                }
+            </div>
+
+            <div class="dropdown-footer">
+                <button @onclick="CreateNewSession" class="btn-new-session">
+                    + New Session
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SessionData>? sessions;
+    private List<SessionData>? filteredSessions;
+    private string? selectedSessionId;
+    private string? currentSessionName;
+    private string searchQuery = "";
+    private bool isDropdownOpen = false;
+
+    [Parameter]
+    public EventCallback<string> OnSessionSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load all available sessions
+        // TODO: Set current session
+        // TODO: Initialize filtered list
+        await Task.CompletedTask;
+    }
+
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+        if (isDropdownOpen)
+        {
+            // TODO: Refresh session list
+        }
+    }
+
+    private void HandleSearch(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        FilterSessions();
+    }
+
+    private void FilterSessions()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredSessions = sessions;
+        }
+        else
+        {
+            var query = searchQuery.ToLower();
+            filteredSessions = sessions?
+                .Where(s => (s.Name ?? "").ToLower().Contains(query) ||
+                           (s.Id ?? "").ToLower().Contains(query))
+                .ToList();
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        // TODO: Handle arrow keys for navigation
+        // TODO: Handle Enter to select
+        // TODO: Handle Escape to close
+    }
+
+    private async Task SelectSession(string sessionId)
+    {
+        selectedSessionId = sessionId;
+        var session = sessions?.FirstOrDefault(s => s.Id == sessionId);
+        if (session != null)
+        {
+            currentSessionName = session.Name ?? $"Session {sessionId}";
+        }
+        isDropdownOpen = false;
+        await OnSessionSelected.InvokeAsync(sessionId);
+    }
+
+    private async Task CreateNewSession()
+    {
+        // TODO: Create new session
+        // TODO: Switch to new session
+        isDropdownOpen = false;
+        await Task.CompletedTask;
+    }
+
+    private class SessionData
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

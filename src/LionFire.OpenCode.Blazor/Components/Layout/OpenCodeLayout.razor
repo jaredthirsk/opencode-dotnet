@@ -1,0 +1,47 @@
+@* OpenCode IDE Layout - Main container replicating OpenCode desktop experience *@
+@implements IAsyncDisposable
+
+<div class="opencode-layout">
+    <DesktopHeader @ref="headerComponent" />
+
+    <div class="layout-main">
+        <Sidebar @ref="sidebarComponent" />
+
+        <div class="layout-center">
+            <FileTabs @ref="fileTabsComponent" />
+            <FileViewer @ref="fileViewerComponent" />
+        </div>
+
+        <div class="layout-right">
+            <SessionTurn @ref="sessionTurnComponent" />
+        </div>
+    </div>
+
+    <div class="layout-bottom">
+        <PtyTerminal @ref="terminalComponent" />
+    </div>
+</div>
+
+@code {
+    private DesktopHeader? headerComponent;
+    private Sidebar? sidebarComponent;
+    private FileTabs? fileTabsComponent;
+    private FileViewer? fileViewerComponent;
+    private SessionTurn? sessionTurnComponent;
+    private PtyTerminal? terminalComponent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Initialize OpenCode layout
+        // TODO: Load session data
+        // TODO: Set up event handlers for file selection, session changes, terminal input
+        await Task.CompletedTask;
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        // TODO: Cleanup resources
+        // TODO: Close PTY connections
+        // TODO: Save session state
+    }
+}

@@ -1,0 +1,73 @@
+@* Replicate diff-changes.tsx - view file diffs with syntax highlighting *@
+
+<div class="diff-viewer">
+    @if (!string.IsNullOrEmpty(DiffContent))
+    {
+        <div class="diff-header">
+            <span class="diff-stats">
+                <span class="added">+@addedLines</span>
+                <span class="removed">-@removedLines</span>
+            </span>
+            <button @onclick="ToggleUnified" class="btn-toggle-view" title="Toggle unified view">
+                <span>≡</span>
+            </button>
+        </div>
+
+        <div class="diff-content" style="max-height: 600px; overflow-y: auto;">
+            @if (isUnified)
+            {
+                <RenderDiffUnified DiffLines="diffLines" />
+            }
+            else
+            {
+                <RenderDiffSideBySide LeftLines="leftLines" RightLines="rightLines" />
+            }
+        </div>
+    }
+    else
+    {
+        <p class="empty-state">No changes</p>
+    }
+</div>
+
+@code {
+    private List<DiffLine> diffLines = new();
+    private List<DiffLine> leftLines = new();
+    private List<DiffLine> rightLines = new();
+    private int addedLines = 0;
+    private int removedLines = 0;
+    private bool isUnified = true;
+
+    [Parameter]
+    public string? DiffContent { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(DiffContent))
+        {
+            await ParseDiff();
+        }
+    }
+
+    private async Task ParseDiff()
+    {
+        // TODO: Parse unified diff format
+        // TODO: Extract line numbers and changes
+        // TODO: Calculate added/removed line counts
+        // TODO: Prepare data for both unified and side-by-side views
+        await Task.CompletedTask;
+    }
+
+    private void ToggleUnified()
+    {
+        isUnified = !isUnified;
+    }
+
+    public class DiffLine
+    {
+        public string? Type { get; set; } // "context", "added", "removed"
+        public string? Content { get; set; }
+        public int? LeftLineNum { get; set; }
+        public int? RightLineNum { get; set; }
+    }
+}
