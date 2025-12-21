@@ -3,23 +3,43 @@ using System.Text.Json.Serialization;
 namespace LionFire.OpenCode.Serve.Models;
 
 /// <summary>
-/// Request to execute a slash command.
+/// Represents a slash command.
 /// </summary>
-/// <param name="Command">The command to execute (e.g., "/help", "/clear").</param>
-/// <param name="Arguments">Optional arguments for the command.</param>
-public record ExecuteCommandRequest(
-    [property: JsonPropertyName("command")] string Command,
-    [property: JsonPropertyName("arguments")] string? Arguments = null
-);
+public record Command
+{
+    /// <summary>
+    /// The command name.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
 
-/// <summary>
-/// Result from executing a command.
-/// </summary>
-/// <param name="Output">The standard output from the command.</param>
-/// <param name="Error">Any error output from the command.</param>
-/// <param name="ExitCode">The exit code (0 for success).</param>
-public record CommandResult(
-    [property: JsonPropertyName("output")] string? Output,
-    [property: JsonPropertyName("error")] string? Error,
-    [property: JsonPropertyName("exitCode")] int ExitCode
-);
+    /// <summary>
+    /// The command description.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// The agent to use for this command.
+    /// </summary>
+    [JsonPropertyName("agent")]
+    public string? Agent { get; init; }
+
+    /// <summary>
+    /// The model to use for this command.
+    /// </summary>
+    [JsonPropertyName("model")]
+    public string? Model { get; init; }
+
+    /// <summary>
+    /// The template text for the command.
+    /// </summary>
+    [JsonPropertyName("template")]
+    public required string Template { get; init; }
+
+    /// <summary>
+    /// Whether this is a subtask command.
+    /// </summary>
+    [JsonPropertyName("subtask")]
+    public bool? Subtask { get; init; }
+}

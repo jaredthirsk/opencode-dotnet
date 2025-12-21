@@ -1,285 +1,363 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace LionFire.OpenCode.Serve.Models;
 
 /// <summary>
-/// Represents the role of a message in a conversation.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<MessageRole>))]
-public enum MessageRole
-{
-    /// <summary>
-    /// System message providing context or instructions.
-    /// </summary>
-    System,
-
-    /// <summary>
-    /// Message from the user.
-    /// </summary>
-    User,
-
-    /// <summary>
-    /// Message from the AI assistant.
-    /// </summary>
-    Assistant,
-
-    /// <summary>
-    /// Message from a tool execution.
-    /// </summary>
-    Tool
-}
-
-/// <summary>
-/// Base class for message parts.
-/// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TextPart), "text")]
-[JsonDerivedType(typeof(FilePart), "file")]
-[JsonDerivedType(typeof(AgentPart), "agent")]
-[JsonDerivedType(typeof(ToolUsePart), "tool_use")]
-[JsonDerivedType(typeof(ToolResultPart), "tool_result")]
-public abstract record MessagePart;
-
-/// <summary>
-/// A text content part of a message.
-/// </summary>
-public record TextPart : MessagePart
-{
-    /// <summary>
-    /// Gets or sets the text content.
-    /// </summary>
-    [JsonPropertyName("text")]
-    public required string Text { get; init; }
-
-    /// <summary>
-    /// Creates a new TextPart with the specified text.
-    /// </summary>
-    /// <param name="text">The text content.</param>
-    [SetsRequiredMembers]
-    public TextPart(string text) => Text = text;
-
-    /// <summary>
-    /// Creates a new TextPart. Required for JSON deserialization.
-    /// </summary>
-    public TextPart() { }
-}
-
-/// <summary>
-/// A file reference part of a message.
-/// </summary>
-public record FilePart : MessagePart
-{
-    /// <summary>
-    /// Gets or sets the path to the file.
-    /// </summary>
-    [JsonPropertyName("filePath")]
-    public required string FilePath { get; init; }
-
-    /// <summary>
-    /// Gets or sets the optional file content if inline.
-    /// </summary>
-    [JsonPropertyName("content")]
-    public string? Content { get; init; }
-
-    /// <summary>
-    /// Creates a new FilePart with the specified path and optional content.
-    /// </summary>
-    /// <param name="filePath">The path to the file.</param>
-    /// <param name="content">Optional file content if inline.</param>
-    [SetsRequiredMembers]
-    public FilePart(string filePath, string? content = null)
-    {
-        FilePath = filePath;
-        Content = content;
-    }
-
-    /// <summary>
-    /// Creates a new FilePart. Required for JSON deserialization.
-    /// </summary>
-    public FilePart() { }
-}
-
-/// <summary>
-/// An agent-specific content part.
-/// </summary>
-public record AgentPart : MessagePart
-{
-    /// <summary>
-    /// Gets or sets the agent identifier.
-    /// </summary>
-    [JsonPropertyName("agentId")]
-    public required string AgentId { get; init; }
-
-    /// <summary>
-    /// Gets or sets the content from the agent.
-    /// </summary>
-    [JsonPropertyName("content")]
-    public required string Content { get; init; }
-
-    /// <summary>
-    /// Creates a new AgentPart with the specified agent ID and content.
-    /// </summary>
-    /// <param name="agentId">The agent identifier.</param>
-    /// <param name="content">The content from the agent.</param>
-    [SetsRequiredMembers]
-    public AgentPart(string agentId, string content)
-    {
-        AgentId = agentId;
-        Content = content;
-    }
-
-    /// <summary>
-    /// Creates a new AgentPart. Required for JSON deserialization.
-    /// </summary>
-    public AgentPart() { }
-}
-
-/// <summary>
-/// A tool use request part.
-/// </summary>
-public record ToolUsePart : MessagePart
-{
-    /// <summary>
-    /// Gets or sets the ID of the tool being used.
-    /// </summary>
-    [JsonPropertyName("toolId")]
-    public required string ToolId { get; init; }
-
-    /// <summary>
-    /// Gets or sets the name of the tool.
-    /// </summary>
-    [JsonPropertyName("toolName")]
-    public required string ToolName { get; init; }
-
-    /// <summary>
-    /// Gets or sets the input parameters for the tool.
-    /// </summary>
-    [JsonPropertyName("input")]
-    public object? Input { get; init; }
-
-    /// <summary>
-    /// Creates a new ToolUsePart with the specified parameters.
-    /// </summary>
-    /// <param name="toolId">The ID of the tool being used.</param>
-    /// <param name="toolName">The name of the tool.</param>
-    /// <param name="input">Optional input parameters for the tool.</param>
-    [SetsRequiredMembers]
-    public ToolUsePart(string toolId, string toolName, object? input = null)
-    {
-        ToolId = toolId;
-        ToolName = toolName;
-        Input = input;
-    }
-
-    /// <summary>
-    /// Creates a new ToolUsePart. Required for JSON deserialization.
-    /// </summary>
-    public ToolUsePart() { }
-}
-
-/// <summary>
-/// A tool execution result part.
-/// </summary>
-public record ToolResultPart : MessagePart
-{
-    /// <summary>
-    /// Gets or sets the ID of the tool that was used.
-    /// </summary>
-    [JsonPropertyName("toolId")]
-    public required string ToolId { get; init; }
-
-    /// <summary>
-    /// Gets or sets the output from the tool execution.
-    /// </summary>
-    [JsonPropertyName("output")]
-    public string? Output { get; init; }
-
-    /// <summary>
-    /// Gets or sets whether the tool execution resulted in an error.
-    /// </summary>
-    [JsonPropertyName("isError")]
-    public bool IsError { get; init; }
-
-    /// <summary>
-    /// Creates a new ToolResultPart with the specified parameters.
-    /// </summary>
-    /// <param name="toolId">The ID of the tool that was used.</param>
-    /// <param name="output">The output from the tool execution.</param>
-    /// <param name="isError">Whether the tool execution resulted in an error.</param>
-    [SetsRequiredMembers]
-    public ToolResultPart(string toolId, string? output, bool isError = false)
-    {
-        ToolId = toolId;
-        Output = output;
-        IsError = isError;
-    }
-
-    /// <summary>
-    /// Creates a new ToolResultPart. Required for JSON deserialization.
-    /// </summary>
-    public ToolResultPart() { }
-}
-
-/// <summary>
-/// Represents a message in an OpenCode session.
+/// Represents a message in a session. Uses a unified structure with all properties
+/// to handle JSON deserialization without relying on polymorphic type discriminators.
 /// </summary>
 public record Message
 {
     /// <summary>
-    /// Gets or sets the unique identifier of the message.
+    /// The unique identifier of the message.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public string Id { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the session this message belongs to.
+    /// The session ID this message belongs to.
     /// </summary>
-    [JsonPropertyName("sessionId")]
-    public required string SessionId { get; init; }
+    [JsonPropertyName("sessionID")]
+    public string SessionId { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the role of the message sender.
+    /// The role of the message sender (user or assistant).
     /// </summary>
     [JsonPropertyName("role")]
-    public required MessageRole Role { get; init; }
+    public string Role { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the parts that make up this message.
+    /// Timestamps for the message.
+    /// </summary>
+    [JsonPropertyName("time")]
+    public MessageTime? Time { get; init; }
+
+    // User message properties
+
+    /// <summary>
+    /// Summary information for the message (user messages).
+    /// </summary>
+    [JsonPropertyName("summary")]
+    public object? Summary { get; init; }
+
+    /// <summary>
+    /// The agent to use for the session (user messages).
+    /// </summary>
+    [JsonPropertyName("agent")]
+    public string? Agent { get; init; }
+
+    /// <summary>
+    /// The model to use for the session (user messages).
+    /// </summary>
+    [JsonPropertyName("model")]
+    public ModelReference? Model { get; init; }
+
+    /// <summary>
+    /// Optional system prompt (user messages).
+    /// </summary>
+    [JsonPropertyName("system")]
+    public string? System { get; init; }
+
+    /// <summary>
+    /// Tool permissions for the session (user messages).
+    /// </summary>
+    [JsonPropertyName("tools")]
+    public Dictionary<string, bool>? Tools { get; init; }
+
+    // Assistant message properties
+
+    /// <summary>
+    /// Error information if the message failed (assistant messages).
+    /// </summary>
+    [JsonPropertyName("error")]
+    public MessageError? Error { get; init; }
+
+    /// <summary>
+    /// The parent message ID that this message is responding to (assistant messages).
+    /// </summary>
+    [JsonPropertyName("parentID")]
+    public string? ParentId { get; init; }
+
+    /// <summary>
+    /// The model ID used (assistant messages).
+    /// </summary>
+    [JsonPropertyName("modelID")]
+    public string? ModelId { get; init; }
+
+    /// <summary>
+    /// The provider ID used (assistant messages).
+    /// </summary>
+    [JsonPropertyName("providerID")]
+    public string? ProviderId { get; init; }
+
+    /// <summary>
+    /// The mode of the message (assistant messages).
+    /// </summary>
+    [JsonPropertyName("mode")]
+    public string? Mode { get; init; }
+
+    /// <summary>
+    /// Path information for the message (assistant messages).
+    /// </summary>
+    [JsonPropertyName("path")]
+    public MessagePath? Path { get; init; }
+
+    /// <summary>
+    /// Cost in dollars for this message (assistant messages).
+    /// </summary>
+    [JsonPropertyName("cost")]
+    public double? Cost { get; init; }
+
+    /// <summary>
+    /// Token usage information (assistant messages).
+    /// </summary>
+    [JsonPropertyName("tokens")]
+    public TokenUsage? Tokens { get; init; }
+
+    /// <summary>
+    /// Finish reason for the message (assistant messages).
+    /// </summary>
+    [JsonPropertyName("finish")]
+    public string? Finish { get; init; }
+
+    /// <summary>
+    /// Raw JSON data for properties not explicitly mapped.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, object?>? ExtensionData { get; init; }
+
+    /// <summary>
+    /// Checks if this is a user message.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsUserMessage => Role == "user";
+
+    /// <summary>
+    /// Checks if this is an assistant message.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsAssistantMessage => Role == "assistant";
+}
+
+/// <summary>
+/// Convenience type for creating user messages programmatically.
+/// </summary>
+public record UserMessage : Message
+{
+    /// <summary>
+    /// Creates a new user message.
+    /// </summary>
+    public UserMessage()
+    {
+        Role = "user";
+    }
+}
+
+/// <summary>
+/// Convenience type for creating assistant messages programmatically.
+/// </summary>
+public record AssistantMessage : Message
+{
+    /// <summary>
+    /// Creates a new assistant message.
+    /// </summary>
+    public AssistantMessage()
+    {
+        Role = "assistant";
+    }
+}
+
+/// <summary>
+/// Timestamps for a message.
+/// </summary>
+public record MessageTime
+{
+    /// <summary>
+    /// When the message was created (Unix timestamp in milliseconds).
+    /// </summary>
+    [JsonPropertyName("created")]
+    public long Created { get; init; }
+
+    /// <summary>
+    /// When the message was completed (Unix timestamp in milliseconds).
+    /// </summary>
+    [JsonPropertyName("completed")]
+    public long? Completed { get; init; }
+}
+
+/// <summary>
+/// Model information for a message.
+/// </summary>
+public record MessageModel
+{
+    /// <summary>
+    /// The provider ID.
+    /// </summary>
+    [JsonPropertyName("providerID")]
+    public string? ProviderId { get; init; }
+
+    /// <summary>
+    /// The model ID.
+    /// </summary>
+    [JsonPropertyName("modelID")]
+    public string? ModelId { get; init; }
+}
+
+/// <summary>
+/// Summary for a user message.
+/// </summary>
+public record UserMessageSummary
+{
+    /// <summary>
+    /// Title of the message.
+    /// </summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    /// <summary>
+    /// Body of the message.
+    /// </summary>
+    [JsonPropertyName("body")]
+    public string? Body { get; init; }
+
+    /// <summary>
+    /// File diffs in the message.
+    /// </summary>
+    [JsonPropertyName("diffs")]
+    public List<FileDiff>? Diffs { get; init; }
+}
+
+/// <summary>
+/// Path information for an assistant message.
+/// </summary>
+public record MessagePath
+{
+    /// <summary>
+    /// Current working directory.
+    /// </summary>
+    [JsonPropertyName("cwd")]
+    public string Cwd { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Root directory.
+    /// </summary>
+    [JsonPropertyName("root")]
+    public string Root { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Token usage for a message.
+/// </summary>
+public record TokenUsage
+{
+    /// <summary>
+    /// Number of input tokens.
+    /// </summary>
+    [JsonPropertyName("input")]
+    public int Input { get; init; }
+
+    /// <summary>
+    /// Number of output tokens.
+    /// </summary>
+    [JsonPropertyName("output")]
+    public int Output { get; init; }
+
+    /// <summary>
+    /// Number of reasoning tokens.
+    /// </summary>
+    [JsonPropertyName("reasoning")]
+    public int Reasoning { get; init; }
+
+    /// <summary>
+    /// Cache usage information.
+    /// </summary>
+    [JsonPropertyName("cache")]
+    public CacheUsage? Cache { get; init; }
+}
+
+/// <summary>
+/// Cache usage information.
+/// </summary>
+public record CacheUsage
+{
+    /// <summary>
+    /// Number of cache read tokens.
+    /// </summary>
+    [JsonPropertyName("read")]
+    public int Read { get; init; }
+
+    /// <summary>
+    /// Number of cache write tokens.
+    /// </summary>
+    [JsonPropertyName("write")]
+    public int Write { get; init; }
+}
+
+/// <summary>
+/// Reference to a model.
+/// </summary>
+public record ModelReference
+{
+    /// <summary>
+    /// The provider ID.
+    /// </summary>
+    [JsonPropertyName("providerID")]
+    public string ProviderId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The model ID.
+    /// </summary>
+    [JsonPropertyName("modelID")]
+    public string ModelId { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Error information for a message. Uses a unified structure for JSON deserialization.
+/// </summary>
+public record MessageError
+{
+    /// <summary>
+    /// The type of error (provider_auth, unknown, message_output_length, message_aborted, api).
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The error message.
+    /// </summary>
+    [JsonPropertyName("message")]
+    public string ErrorMessage { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The provider ID that failed authentication (for provider_auth errors).
+    /// </summary>
+    [JsonPropertyName("providerID")]
+    public string? ProviderId { get; init; }
+
+    /// <summary>
+    /// Raw JSON data for properties not explicitly mapped.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, object?>? ExtensionData { get; init; }
+}
+
+/// <summary>
+/// Wrapper for message with parts (used in some API responses).
+/// The API returns "info" for the message data.
+/// </summary>
+public record MessageWithParts
+{
+    /// <summary>
+    /// The message info (returned as "info" in API responses).
+    /// </summary>
+    [JsonPropertyName("info")]
+    public Message? Message { get; init; }
+
+    /// <summary>
+    /// The parts of the message.
     /// </summary>
     [JsonPropertyName("parts")]
-    public required IReadOnlyList<MessagePart> Parts { get; init; }
-
-    /// <summary>
-    /// Gets or sets when the message was created.
-    /// </summary>
-    [JsonPropertyName("createdAt")]
-    public required DateTimeOffset CreatedAt { get; init; }
-
-    /// <summary>
-    /// Gets or sets the optional token count for this message.
-    /// </summary>
-    [JsonPropertyName("tokenCount")]
-    public int? TokenCount { get; init; }
-
-    /// <summary>
-    /// Creates a new Message with the specified parameters.
-    /// </summary>
-    [SetsRequiredMembers]
-    public Message(string id, string sessionId, MessageRole role, IReadOnlyList<MessagePart> parts, DateTimeOffset createdAt, int? tokenCount = null)
-    {
-        Id = id;
-        SessionId = sessionId;
-        Role = role;
-        Parts = parts;
-        CreatedAt = createdAt;
-        TokenCount = tokenCount;
-    }
-
-    /// <summary>
-    /// Creates a new Message. Required for JSON deserialization.
-    /// </summary>
-    public Message() { }
+    public List<Part>? Parts { get; init; }
 }
 
 /// <summary>
@@ -288,66 +366,20 @@ public record Message
 public record SendMessageRequest
 {
     /// <summary>
-    /// Gets or sets the message parts to send.
+    /// The message parts to send.
     /// </summary>
     [JsonPropertyName("parts")]
-    public required IReadOnlyList<MessagePart> Parts { get; init; }
+    public List<PartInput> Parts { get; init; } = new();
 
     /// <summary>
-    /// Creates a new SendMessageRequest with the specified parts.
+    /// Optional agent to use.
     /// </summary>
-    /// <param name="parts">The message parts to send.</param>
-    [SetsRequiredMembers]
-    public SendMessageRequest(IReadOnlyList<MessagePart> parts) => Parts = parts;
+    [JsonPropertyName("agent")]
+    public string? Agent { get; init; }
 
     /// <summary>
-    /// Creates a new SendMessageRequest. Required for JSON deserialization.
+    /// Optional model to use.
     /// </summary>
-    public SendMessageRequest() { }
-}
-
-/// <summary>
-/// Represents an incremental update during message streaming.
-/// </summary>
-public record MessageUpdate
-{
-    /// <summary>
-    /// Gets or sets the ID of the message being streamed.
-    /// </summary>
-    [JsonPropertyName("messageId")]
-    public string? MessageId { get; init; }
-
-    /// <summary>
-    /// Gets or sets the incremental content update.
-    /// </summary>
-    [JsonPropertyName("delta")]
-    public string? Delta { get; init; }
-
-    /// <summary>
-    /// Gets or sets whether the message is complete.
-    /// </summary>
-    [JsonPropertyName("done")]
-    public bool Done { get; init; }
-
-    /// <summary>
-    /// Gets or sets the running token count if available.
-    /// </summary>
-    [JsonPropertyName("tokenCount")]
-    public int? TokenCount { get; init; }
-
-    /// <summary>
-    /// Creates a new MessageUpdate with the specified parameters.
-    /// </summary>
-    public MessageUpdate(string? messageId, string? delta, bool done = false, int? tokenCount = null)
-    {
-        MessageId = messageId;
-        Delta = delta;
-        Done = done;
-        TokenCount = tokenCount;
-    }
-
-    /// <summary>
-    /// Creates a new MessageUpdate. Required for JSON deserialization.
-    /// </summary>
-    public MessageUpdate() { }
+    [JsonPropertyName("model")]
+    public ModelReference? Model { get; init; }
 }
