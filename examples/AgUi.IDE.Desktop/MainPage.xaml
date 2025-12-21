@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AgUi.IDE.Desktop.MainPage"
+             Title="OpenCode IDE Desktop">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Spacing="25"
+            Padding="30,0"
+            VerticalOptions="Center">
+
+            <Label
+                Text="OpenCode IDE - Desktop"
+                FontSize="32"
+                FontAttributes="Bold"
+                HorizontalOptions="Center" />
+
+            <Label
+                Text="MAUI Blazor Hybrid IDE"
+                FontSize="18"
+                HorizontalOptions="Center" />
+
+            <!-- TODO: Integrate Blazor WASM IDE component here -->
+            <Label
+                Text="IDE Interface - Not yet implemented"
+                FontSize="14"
+                TextColor="Gray"
+                HorizontalOptions="Center" />
+
+            <Button
+                Text="Load Project"
+                Clicked="OnLoadProjectClicked"
+                HorizontalOptions="Center"
+                WidthRequest="200" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

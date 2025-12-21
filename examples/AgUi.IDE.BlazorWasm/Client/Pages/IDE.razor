@@ -1,0 +1,54 @@
+@page "/"
+@using Shared.Components
+@using Shared.Components.Components
+
+<PageTitle>OpenCode IDE WASM</PageTitle>
+
+@*
+TODO: Implement full IDE experience for WASM
+- Load project files from Server API
+- Implement file watching for real-time updates
+- Handle AI agent code generation responses
+- Implement project build/run functionality
+- Add terminal session management
+- Implement VS Code-like keyboard shortcuts
+*@
+
+<div class="ide-container" style="height: 100vh; width: 100vw; overflow: hidden;">
+    <header class="ide-header">
+        <h1>OpenCode IDE - WebAssembly</h1>
+        @* TODO: Add toolbar with project selector, build button, run button *@
+    </header>
+
+    <main class="ide-main">
+        @* TODO: Use IDEView component from Shared.Components *@
+        <div class="placeholder">
+            <p>IDE Interface - Not yet implemented</p>
+            <p>TODO: Integrate IDEView component</p>
+        </div>
+    </main>
+</div>
+
+<style>
+    .ide-container {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ide-header {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .ide-main {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .placeholder {
+        padding: 2rem;
+        text-align: center;
+        color: #666;
+    }
+</style>
