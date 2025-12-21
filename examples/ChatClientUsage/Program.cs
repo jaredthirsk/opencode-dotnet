@@ -163,17 +163,36 @@ try
 
     var streamMessages = new List<ChatMessage>
     {
-        new(ChatRole.User, "Count from 1 to 5, one number per line.")
+        new(ChatRole.User, "Count from 1 to 5, putting each number on its own line.")
     };
 
     // Create a new chat client for streaming (to get fresh session)
     var streamChatClient = openCodeClient.AsChatClient(model: modelRef);
+    var streamedContent = new System.Text.StringBuilder();
 
     await foreach (var update in streamChatClient.GetStreamingResponseAsync(streamMessages))
     {
-        if (!string.IsNullOrEmpty(update.Text))
+        // Try to get text content from the update
+        foreach (var content in update.Contents)
         {
-            Console.Write(update.Text);
+            if (content is TextContent textContent && !string.IsNullOrEmpty(textContent.Text))
+            {
+                // Check if this is new content (delta) by comparing with what we've seen
+                var newText = textContent.Text;
+                if (newText.Length > streamedContent.Length && newText.StartsWith(streamedContent.ToString()))
+                {
+                    // This is accumulated text - extract just the delta
+                    var delta = newText.Substring(streamedContent.Length);
+                    Console.Write(delta);
+                    streamedContent.Append(delta);
+                }
+                else if (streamedContent.Length == 0)
+                {
+                    // First content
+                    Console.Write(newText);
+                    streamedContent.Append(newText);
+                }
+            }
         }
 
         if (update.FinishReason == ChatFinishReason.Stop)
@@ -181,6 +200,12 @@ try
             Console.WriteLine();
             Console.WriteLine("   [Stream completed]");
         }
+    }
+
+    // If nothing was streamed via contents, show what we got
+    if (streamedContent.Length == 0)
+    {
+        Console.WriteLine("(streaming produced no visible output - model may not support streaming)");
     }
     Console.WriteLine();
 
@@ -212,11 +237,19 @@ try
     var underlyingClient = chatClient.GetService(typeof(IOpenCodeClient)) as IOpenCodeClient;
     if (underlyingClient is not null)
     {
-        var config = await underlyingClient.GetConfigAsync(directory);
-        if (config.TryGetValue("version", out var ver))
-        {
-            Console.WriteLine($"   OpenCode version: {ver}");
-        }
+        // Demonstrate accessing the underlying client by listing providers
+        var providers = await underlyingClient.ListProvidersAsync(directory);
+        var freeProviders = providers
+            .Where(p => p.Models?.Any(m => (m.InputCost ?? 0) == 0 && (m.OutputCost ?? 0) == 0) == true)
+            .Take(5)
+            .Select(p => p.Name);
+        Console.WriteLine($"   Underlying client type: {underlyingClient.GetType().Name}");
+        Console.WriteLine($"   Available providers: {providers.Count}");
+        Console.WriteLine($"   Free providers (sample): {string.Join(", ", freeProviders)}");
+    }
+    else
+    {
+        Console.WriteLine("   Could not retrieve underlying client");
     }
     Console.WriteLine();
 
