@@ -84,8 +84,8 @@ public class OpenCodeChatClientTests
     public async Task GetResponseAsync_WithNoUserMessage_ThrowsArgumentException()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        var session = CreateSession("test-session", TestDate);
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
         var chatClient = new OpenCodeChatClient(_mockClient);
@@ -100,20 +100,37 @@ public class OpenCodeChatClientTests
             .WithMessage("*No user message found*");
     }
 
+    private static Session CreateSession(string sessionId, DateTimeOffset time)
+    {
+        return new Session
+        {
+            Id = sessionId,
+            ProjectId = "test-project",
+            Directory = "/test",
+            Title = "Test Session",
+            Version = "1.0",
+            Time = new SessionTime
+            {
+                Created = time.ToUnixTimeMilliseconds(),
+                Updated = time.ToUnixTimeMilliseconds()
+            }
+        };
+    }
+
     [Fact]
     public async Task GetResponseAsync_WithoutSession_CreatesNewSession()
     {
         // Arrange
-        var session = new Session("test-session-id", TestDate, TestDate, SessionStatus.Active);
-        var responseMessage = new Message(
-            "msg-1", "test-session-id", MessageRole.Assistant,
-            new[] { new TextPart("Hello!") }, TestDate);
+        var session = CreateSession("test-session-id", TestDate);
+        var responseMessage = CreateAssistantMessageWithParts(
+            "msg-1", "test-session-id", "Hello!", TestDate);
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
-        _mockClient.SendMessageAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
             .Returns(responseMessage);
 
@@ -127,21 +144,75 @@ public class OpenCodeChatClientTests
         await chatClient.GetResponseAsync(messages);
 
         // Assert
-        await _mockClient.Received(1).CreateSessionAsync(null, Arg.Any<CancellationToken>());
+        await _mockClient.Received(1).CreateSessionAsync(null, Arg.Any<string?>(), Arg.Any<CancellationToken>());
         chatClient.SessionId.Should().Be("test-session-id");
+    }
+
+    private static MessageWithParts CreateAssistantMessageWithParts(
+        string messageId, string sessionId, string text, DateTimeOffset time)
+    {
+        var message = new AssistantMessage
+        {
+            Id = messageId,
+            SessionId = sessionId,
+            Role = "assistant",
+            Time = new MessageTime
+            {
+                Created = time.ToUnixTimeMilliseconds()
+            },
+            ParentId = "parent-msg",
+            ModelId = "test-model",
+            ProviderId = "test-provider",
+            Mode = "normal",
+            Path = new MessagePath
+            {
+                Cwd = "/test",
+                Root = "/test"
+            },
+            Cost = 0.0,
+            Tokens = new TokenUsage
+            {
+                Input = 10,
+                Output = 20,
+                Reasoning = 0,
+                Cache = new CacheUsage
+                {
+                    Read = 0,
+                    Write = 0
+                }
+            }
+        };
+
+        var parts = new List<Part>
+        {
+            new Part
+            {
+                Id = "part-1",
+                SessionId = sessionId,
+                MessageId = messageId,
+                Type = "text",
+                Text = text
+            }
+        };
+
+        return new MessageWithParts
+        {
+            Message = message,
+            Parts = parts
+        };
     }
 
     [Fact]
     public async Task GetResponseAsync_WithExistingSession_ReusesSession()
     {
         // Arrange
-        var responseMessage = new Message(
-            "msg-1", "existing-session", MessageRole.Assistant,
-            new[] { new TextPart("Hello!") }, TestDate);
+        var responseMessage = CreateAssistantMessageWithParts(
+            "msg-1", "existing-session", "Hello!", TestDate);
 
-        _mockClient.SendMessageAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
             .Returns(responseMessage);
 
@@ -158,25 +229,25 @@ public class OpenCodeChatClientTests
         await chatClient.GetResponseAsync(messages);
 
         // Assert
-        await _mockClient.DidNotReceive().CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
-        await _mockClient.Received(1).SendMessageAsync("existing-session", Arg.Any<IReadOnlyList<MessagePart>>(), Arg.Any<CancellationToken>());
+        await _mockClient.DidNotReceive().CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await _mockClient.Received(1).PromptAsync("existing-session", Arg.Any<SendMessageRequest>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task GetResponseAsync_ConvertsResponseCorrectly()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
-        var responseMessage = new Message(
-            "msg-123", "test-session", MessageRole.Assistant,
-            new[] { new TextPart("The answer is 42.") },
-            DateTimeOffset.Parse("2024-01-15T10:30:00Z"));
+        var session = CreateSession("test-session", TestDate);
+        var responseTime = DateTimeOffset.Parse("2024-01-15T10:30:00Z");
+        var responseMessage = CreateAssistantMessageWithParts(
+            "msg-123", "test-session", "The answer is 42.", responseTime);
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
-        _mockClient.SendMessageAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
             .Returns(responseMessage);
 
@@ -201,16 +272,16 @@ public class OpenCodeChatClientTests
     public async Task GetResponseAsync_WithTextContent_ConvertsToTextPart()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
-        var responseMessage = new Message(
-            "msg-1", "test-session", MessageRole.Assistant,
-            new[] { new TextPart("Response") }, TestDate);
+        var session = CreateSession("test-session", TestDate);
+        var responseMessage = CreateAssistantMessageWithParts(
+            "msg-1", "test-session", "Response", TestDate);
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
-        _mockClient.SendMessageAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
             .Returns(responseMessage);
 
@@ -224,11 +295,12 @@ public class OpenCodeChatClientTests
         await chatClient.GetResponseAsync(messages);
 
         // Assert
-        await _mockClient.Received(1).SendMessageAsync(
+        await _mockClient.Received(1).PromptAsync(
             Arg.Any<string>(),
-            Arg.Is<IReadOnlyList<MessagePart>>(parts =>
-                parts.Count == 1 &&
-                parts[0] is TextPart),
+            Arg.Is<SendMessageRequest>(req =>
+                req.Parts.Count == 1 &&
+                req.Parts[0].Type == "text"),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>());
     }
 

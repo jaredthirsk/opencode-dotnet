@@ -40,8 +40,8 @@ public class OpenCodeChatClientStreamingTests
     public async Task GetStreamingResponseAsync_WithNoUserMessage_ThrowsArgumentException()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        var session = CreateSession("test-session");
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
         var chatClient = new OpenCodeChatClient(_mockClient);
@@ -66,16 +66,18 @@ public class OpenCodeChatClientStreamingTests
     public async Task GetStreamingResponseAsync_WithoutSession_CreatesNewSession()
     {
         // Arrange
-        var session = new Session("stream-session-id", TestDate, TestDate, SessionStatus.Active);
+        var session = CreateSession("stream-session-id");
+        var responseMessage = CreateMessageWithParts("response-id", "stream-session-id", "Hello!");
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
-        _mockClient.SendMessageStreamingAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
-            .Returns(CreateStreamingResponse());
+            .Returns(responseMessage);
 
         var chatClient = new OpenCodeChatClient(_mockClient);
         var messages = new List<ChatMessage>
@@ -90,27 +92,26 @@ public class OpenCodeChatClientStreamingTests
         }
 
         // Assert
-        await _mockClient.Received(1).CreateSessionAsync(null, Arg.Any<CancellationToken>());
+        await _mockClient.Received(1).CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
         chatClient.SessionId.Should().Be("stream-session-id");
     }
 
     [Fact]
-    public async Task GetStreamingResponseAsync_YieldsUpdatesWithDelta()
+    public async Task GetStreamingResponseAsync_YieldsSingleUpdate()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
+        var session = CreateSession("test-session");
+        var responseMessage = CreateMessageWithParts("msg-1", "test-session", "Hello world");
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
-        _mockClient.SendMessageStreamingAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
-            .Returns(CreateStreamingResponse(
-                new MessageUpdate { Delta = "Hello", MessageId = "msg-1" },
-                new MessageUpdate { Delta = " world", MessageId = "msg-1" },
-                new MessageUpdate { Done = true, MessageId = "msg-1" }));
+            .Returns(responseMessage);
 
         var chatClient = new OpenCodeChatClient(_mockClient);
         var messages = new List<ChatMessage>
@@ -126,64 +127,27 @@ public class OpenCodeChatClientStreamingTests
         }
 
         // Assert
-        updates.Should().HaveCount(3);
-        updates[0].Text.Should().Be("Hello");
+        updates.Should().HaveCount(1);
         updates[0].Role.Should().Be(ChatRole.Assistant);
-        updates[1].Text.Should().Be(" world");
-        updates[2].FinishReason.Should().Be(ChatFinishReason.Stop);
+        updates[0].MessageId.Should().Be("msg-1");
     }
 
     [Fact]
-    public async Task GetStreamingResponseAsync_SkipsNullDeltas()
+    public async Task GetStreamingResponseAsync_SetsMessageIdOnUpdate()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
+        var session = CreateSession("test-session");
+        var responseMessage = CreateMessageWithParts("unique-msg-id", "test-session", "Content");
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
-        _mockClient.SendMessageStreamingAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
-            .Returns(CreateStreamingResponse(
-                new MessageUpdate { Delta = "Text", MessageId = "msg-1" },
-                new MessageUpdate { Delta = null, MessageId = "msg-1" }, // This should be skipped for content
-                new MessageUpdate { Done = true, MessageId = "msg-1" }));
-
-        var chatClient = new OpenCodeChatClient(_mockClient);
-        var messages = new List<ChatMessage>
-        {
-            new(ChatRole.User, "Test")
-        };
-
-        // Act
-        var updates = new List<ChatResponseUpdate>();
-        await foreach (var update in chatClient.GetStreamingResponseAsync(messages))
-        {
-            updates.Add(update);
-        }
-
-        // Assert
-        updates.Should().HaveCount(2); // Text delta + done
-    }
-
-    [Fact]
-    public async Task GetStreamingResponseAsync_SetsMessageIdOnUpdates()
-    {
-        // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
-
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(session);
-
-        _mockClient.SendMessageStreamingAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
-            Arg.Any<CancellationToken>())
-            .Returns(CreateStreamingResponse(
-                new MessageUpdate { Delta = "Content", MessageId = "unique-msg-id" },
-                new MessageUpdate { Done = true, MessageId = "unique-msg-id" }));
+            .Returns(responseMessage);
 
         var chatClient = new OpenCodeChatClient(_mockClient);
         var messages = new List<ChatMessage>
@@ -206,59 +170,98 @@ public class OpenCodeChatClientStreamingTests
     public async Task GetStreamingResponseAsync_WithCancellation_StopsEnumeration()
     {
         // Arrange
-        var session = new Session("test-session", TestDate, TestDate, SessionStatus.Active);
+        var session = CreateSession("test-session");
         var cts = new CancellationTokenSource();
 
-        _mockClient.CreateSessionAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _mockClient.CreateSessionAsync(Arg.Any<CreateSessionRequest?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(session);
 
-        async IAsyncEnumerable<MessageUpdate> InfiniteStream([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
-        {
-            int i = 0;
-            while (!ct.IsCancellationRequested)
-            {
-                yield return new MessageUpdate { Delta = $"Part {i++}", MessageId = "msg-1" };
-                await Task.Delay(10, ct);
-            }
-        }
-
-        _mockClient.SendMessageStreamingAsync(
+        _mockClient.PromptAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<MessagePart>>(),
+            Arg.Any<SendMessageRequest>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>())
-            .Returns(call => InfiniteStream(call.Arg<CancellationToken>()));
+            .Returns(async call =>
+            {
+                var token = call.Arg<CancellationToken>();
+                await Task.Delay(100, token);
+                return CreateMessageWithParts("msg-1", "test-session", "Response");
+            });
 
         var chatClient = new OpenCodeChatClient(_mockClient);
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.User, "Infinite test")
+            new(ChatRole.User, "Test")
         };
 
         // Act
-        var updates = new List<ChatResponseUpdate>();
-        var consumeTask = Task.Run(async () =>
+        await cts.CancelAsync();
+        var act = async () =>
         {
-            await foreach (var update in chatClient.GetStreamingResponseAsync(messages, cancellationToken: cts.Token))
+            await foreach (var _ in chatClient.GetStreamingResponseAsync(messages, cancellationToken: cts.Token))
             {
-                updates.Add(update);
-                if (updates.Count >= 3)
-                {
-                    await cts.CancelAsync();
-                }
+                // consume
             }
-        });
+        };
 
         // Assert
-        await Task.WhenAny(consumeTask, Task.Delay(TimeSpan.FromSeconds(5)));
-        updates.Count.Should().BeGreaterOrEqualTo(3);
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
-    private static async IAsyncEnumerable<MessageUpdate> CreateStreamingResponse(params MessageUpdate[] updates)
+    // Helper methods to create test data
+    private static Session CreateSession(string id)
     {
-        foreach (var update in updates)
+        return new Session
         {
-            yield return update;
-        }
-        await Task.CompletedTask;
+            Id = id,
+            ProjectId = "test-project",
+            Directory = "/test",
+            Title = "Test Session",
+            Version = "1",
+            Time = new SessionTime
+            {
+                Created = TestDate.ToUnixTimeMilliseconds(),
+                Updated = TestDate.ToUnixTimeMilliseconds()
+            }
+        };
+    }
+
+    private static MessageWithParts CreateMessageWithParts(string messageId, string sessionId, string text)
+    {
+        var message = new AssistantMessage
+        {
+            Id = messageId,
+            SessionId = sessionId,
+            Role = "assistant",
+            Time = new MessageTime { Created = TestDate.ToUnixTimeMilliseconds() },
+            ParentId = "parent-id",
+            ModelId = "test-model",
+            ProviderId = "test-provider",
+            Mode = "normal",
+            Path = new MessagePath { Cwd = "/test", Root = "/test" },
+            Cost = 0.0,
+            Tokens = new TokenUsage
+            {
+                Input = 10,
+                Output = 20,
+                Reasoning = 0,
+                Cache = new CacheUsage { Read = 0, Write = 0 }
+            }
+        };
+
+        var textPart = new Part
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = sessionId,
+            MessageId = messageId,
+            Type = "text",
+            Text = text
+        };
+
+        return new MessageWithParts
+        {
+            Message = message,
+            Parts = new List<Part> { textPart }
+        };
     }
 }

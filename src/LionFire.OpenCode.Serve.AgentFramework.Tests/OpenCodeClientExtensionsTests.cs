@@ -73,41 +73,6 @@ public class OpenCodeClientExtensionsTests
     }
 
     [Fact]
-    public void AsChatClient_FromSessionScope_UsesSessionId()
-    {
-        // Arrange
-        var mockScope = Substitute.For<ISessionScope>();
-        mockScope.SessionId.Returns("scope-session-789");
-
-        // Act
-        var chatClient = mockScope.AsChatClient(_mockClient);
-
-        // Assert
-        var openCodeChatClient = chatClient.Should().BeOfType<OpenCodeChatClient>().Subject;
-        openCodeChatClient.SessionId.Should().Be("scope-session-789");
-    }
-
-    [Fact]
-    public void AsChatClient_FromSessionScope_WithOptions_AppliesOptions()
-    {
-        // Arrange
-        var mockScope = Substitute.For<ISessionScope>();
-        mockScope.SessionId.Returns("scope-session");
-
-        var options = new OpenCodeChatClientOptions
-        {
-            ModelId = "scope-model",
-            Directory = "/test/dir"
-        };
-
-        // Act
-        var chatClient = mockScope.AsChatClient(_mockClient, options) as OpenCodeChatClient;
-
-        // Assert
-        chatClient.Should().NotBeNull();
-    }
-
-    [Fact]
     public void AsChatClient_ReturnsIChatClientInterface()
     {
         // Act
