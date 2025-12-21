@@ -1,29 +1,15 @@
-# Integration Option 2: OpencodeAI as Agent Framework Tools
-
-> **TODO: REWRITE REQUIRED FOR LOCAL SERVER MODEL**
->
-> This document was written for a **cloud API version** of OpencodeAI that had specialized methods like `GenerateCodeAsync()`, `ExplainCodeAsync()`, `ReviewCodeAsync()`, etc.
->
-> The actual **local server API** (`opencode serve`) is fundamentally different:
-> - Session-based conversations (not method-based)
-> - Generic message sending via `POST /session/{id}/message`
-> - The AI (configured in OpenCode) decides what to do based on the prompt
-> - No specialized endpoints for "generate", "review", "explain"
->
-> **To adapt this for local server:**
-> - Tools would expose session/message operations, not specialized code methods
-> - Example tools: `SendPromptTool`, `CreateSessionTool`, `ListFilesTool`, `SearchCodeTool`
-> - The value proposition may be different since OpenCode itself is already AI-powered
->
-> **Status**: Deferred to v1.1+ pending demand and redesign
->
-> **See**: `/plan/backlog/option-2-tools-redesign.md` for tracking
-
----
+# Integration Option 2: OpenCode as Agent Framework Tools
 
 ## Overview
 
-Register OpencodeAI client methods as tools (functions) that any Microsoft Agent Framework agent can invoke. This allows agents powered by OpenAI, Anthropic, Azure OpenAI, or other providers to delegate code-specific tasks to OpencodeAI's specialized capabilities.
+Register OpenCode client operations as tools (functions) that any Microsoft Agent Framework agent can invoke. This allows agents powered by OpenAI, Anthropic, Azure OpenAI, or other providers to leverage OpenCode's local AI coding capabilities and file/search operations.
+
+The local server API (`opencode serve`) provides:
+- **Session-based AI conversations**: Create sessions and send prompts to an AI agent
+- **File operations**: List, read, and search files in the project
+- **Code search**: Find text, files, and symbols across the codebase
+- **PTY operations**: Execute shell commands and manage terminal sessions
+- **VCS integration**: Get git status and diff information
 
 ## Architecture
 
@@ -36,133 +22,152 @@ Register OpencodeAI client methods as tools (functions) that any Microsoft Agent
                  │ Calls tools when needed
                  ▼
 ┌─────────────────────────────────────────┐
-│        OpencodeAI Function Tools        │
+│         OpenCode Function Tools         │
 ├─────────────────────────────────────────┤
-│ • GenerateCodeTool                      │
-│ • ExplainCodeTool                       │
-│ • ReviewCodeTool                        │
-│ • RefactorCodeTool                      │
-│ • StreamCodeTool                        │
+│ • SendPromptTool (AI conversations)     │
+│ • ReadFileTool                          │
+│ • FindTextTool (grep-like search)       │
+│ • FindFilesTool (file pattern search)   │
+│ • FindSymbolsTool (code symbols)        │
+│ • GetSessionDiffTool                    │
+│ • ExecuteShellTool                      │
 └────────────────┬────────────────────────┘
                  │
                  │ Delegates to
                  ▼
 ┌─────────────────────────────────────────┐
-│          IOpencodeClient                │
+│          IOpenCodeClient                │
+│    (connects to opencode serve)         │
 └─────────────────────────────────────────┘
 ```
 
 ## Key Benefits
 
-1. **Universal Access**: Any Agent Framework agent can use OpencodeAI capabilities
-2. **Automatic Tool Selection**: LLMs decide when to use OpencodeAI based on context
-3. **Specialization**: OpencodeAI becomes the code expert while other agents handle general tasks
-4. **Model Flexibility**: Use cheaper/faster models for general chat, OpencodeAI for code
-5. **Hybrid Intelligence**: Combine multiple AI providers' strengths in one workflow
+1. **Universal Access**: Any Agent Framework agent can use OpenCode's local AI and file operations
+2. **Automatic Tool Selection**: LLMs decide when to use OpenCode tools based on context
+3. **Hybrid Intelligence**: Use one model for orchestration, delegate to OpenCode's configured model for code tasks
+4. **Local-First**: All operations run locally via `opencode serve` - no cloud API required
+5. **Rich Context**: OpenCode sessions maintain full conversation history and project context
 
 ## Implementation
 
-### Step 1: Create OpencodeAI Tool Wrapper
+### Step 1: Create OpenCode Tool Wrapper
 
 ```csharp
-using Microsoft.Extensions.AI;
-using OpencodeAI;
-using OpencodeAI.Models.Requests;
-using OpencodeAI.Analysis;
+using System.ComponentModel;
+using LionFire.OpenCode.Serve;
+using LionFire.OpenCode.Serve.Models;
 
-public class OpencodeTools
+public class OpenCodeTools
 {
-    private readonly IOpencodeClient _client;
+    private readonly IOpenCodeClient _client;
+    private readonly string _directory;
+    private string? _sessionId;
 
-    public OpencodeTools(IOpencodeClient client)
+    public OpenCodeTools(IOpenCodeClient client, string directory)
     {
         _client = client;
+        _directory = directory;
     }
 
-    [Description("Generate code based on a natural language description")]
-    public async Task<string> GenerateCode(
-        [Description("Natural language description of code to generate")] string prompt,
-        [Description("Programming language (e.g., CSharp, Python, JavaScript)")] string language,
+    [Description("Send a prompt to the OpenCode AI assistant and get a response. " +
+                 "Use this for code generation, explanation, review, refactoring, and general coding questions.")]
+    public async Task<string> SendPrompt(
+        [Description("The prompt or question to send to the AI assistant")] string prompt,
         CancellationToken cancellationToken = default)
     {
-        var request = new GenerateCodeRequest
+        // Create or reuse session
+        if (_sessionId == null)
         {
-            Prompt = prompt,
-            ProgrammingLanguage = Enum.Parse<ProgrammingLanguage>(language, ignoreCase: true)
+            var session = await _client.CreateSessionAsync(
+                directory: _directory,
+                cancellationToken: cancellationToken);
+            _sessionId = session.Id;
+        }
+
+        var request = new SendMessageRequest
+        {
+            Parts = new List<PartInput>
+            {
+                new TextPartInput { Type = "text", Text = prompt }
+            }
         };
 
-        var response = await _client.GenerateCodeAsync(request, cancellationToken);
-        return response.Code;
+        var response = await _client.PromptAsync(_sessionId, request, _directory, cancellationToken);
+
+        // Extract text content from response parts
+        var textParts = response.Parts?
+            .OfType<TextPart>()
+            .Select(p => p.Text)
+            .Where(t => !string.IsNullOrEmpty(t));
+
+        return string.Join("\n", textParts ?? Enumerable.Empty<string>());
     }
 
-    [Description("Explain what a code snippet does")]
-    public async Task<string> ExplainCode(
-        [Description("Code to explain")] string code,
-        [Description("Programming language")] string language,
-        [Description("Detail level: Brief, Normal, Detailed, or Comprehensive")]
-        string detailLevel = "Normal",
+    [Description("Read the contents of a file from the project")]
+    public async Task<string> ReadFile(
+        [Description("Path to the file (relative to project root)")] string path,
         CancellationToken cancellationToken = default)
     {
-        var result = await _client.ExplainCodeAsync(
-            code,
-            Enum.Parse<ProgrammingLanguage>(language, ignoreCase: true),
-            detailLevel: Enum.Parse<DetailLevel>(detailLevel, ignoreCase: true),
-            cancellationToken: cancellationToken);
-
-        return $"Summary: {result.Summary}\n\nDetails: {result.DetailedExplanation}";
+        var content = await _client.ReadFileAsync(path, _directory, cancellationToken);
+        return content.Content ?? string.Empty;
     }
 
-    [Description("Review code for issues and provide suggestions")]
-    public async Task<string> ReviewCode(
-        [Description("Code to review")] string code,
-        [Description("Programming language")] string language,
-        [Description("Review focus areas (comma-separated): Security, Performance, Style, BugRisk")]
-        string focusAreas = "Security,BugRisk",
+    [Description("Search for text patterns in files (grep-like functionality)")]
+    public async Task<string> FindText(
+        [Description("Text or regex pattern to search for")] string query,
         CancellationToken cancellationToken = default)
     {
-        var focus = focusAreas.Split(',')
-            .Select(f => Enum.Parse<ReviewFocus>(f.Trim(), ignoreCase: true))
-            .Aggregate((a, b) => a | b);
-
-        var result = await _client.ReviewCodeAsync(
-            code,
-            Enum.Parse<ProgrammingLanguage>(language, ignoreCase: true),
-            focus: focus,
-            cancellationToken: cancellationToken);
-
-        var issues = string.Join("\n", result.Issues.Select(i =>
-            $"[{i.Severity}] Line {i.Line}: {i.Description}"));
-
-        var suggestions = string.Join("\n", result.Suggestions.Select(s =>
-            $"• {s.Description}"));
-
-        return $"Code Quality Score: {result.Score}/10\n\n" +
-               $"Issues:\n{issues}\n\n" +
-               $"Suggestions:\n{suggestions}";
+        var results = await _client.FindTextAsync(query, _directory, cancellationToken);
+        return string.Join("\n", results);
     }
 
-    [Description("Suggest refactoring improvements for code")]
-    public async Task<string> SuggestRefactoring(
-        [Description("Code to refactor")] string code,
-        [Description("Programming language")] string language,
-        [Description("Refactoring goals (comma-separated): Readability, Performance, Maintainability")]
-        string goals = "Readability,Maintainability",
+    [Description("Find files matching a pattern")]
+    public async Task<string> FindFiles(
+        [Description("File name or glob pattern to search for")] string query,
         CancellationToken cancellationToken = default)
     {
-        var refactoringGoals = goals.Split(',')
-            .Select(g => Enum.Parse<RefactoringGoal>(g.Trim(), ignoreCase: true))
-            .Aggregate((a, b) => a | b);
+        var results = await _client.FindFilesAsync(query, directory: _directory, cancellationToken: cancellationToken);
+        return string.Join("\n", results);
+    }
 
-        var result = await _client.SuggestRefactoringAsync(
-            code,
-            Enum.Parse<ProgrammingLanguage>(language, ignoreCase: true),
-            goal: refactoringGoals,
-            cancellationToken: cancellationToken);
+    [Description("Search for code symbols (classes, functions, variables)")]
+    public async Task<string> FindSymbols(
+        [Description("Symbol name to search for")] string query,
+        CancellationToken cancellationToken = default)
+    {
+        var results = await _client.FindSymbolsAsync(query, _directory, cancellationToken);
+        return string.Join("\n", results.Select(s =>
+            $"{s.Name} ({s.Kind}) - {s.Location?.Path}:{s.Location?.Range?.Start?.Line}"));
+    }
 
-        return $"Reasoning: {result.Reasoning}\n\n" +
-               $"Before:\n```{language}\n{result.BeforeCode}\n```\n\n" +
-               $"After:\n```{language}\n{result.AfterCode}\n```\n\n" +
-               $"Explanation: {result.Explanation}";
+    [Description("List files in a directory")]
+    public async Task<string> ListFiles(
+        [Description("Directory path to list (relative to project root)")] string path,
+        CancellationToken cancellationToken = default)
+    {
+        var files = await _client.ListFilesAsync(path, _directory, cancellationToken);
+        return string.Join("\n", files.Select(f => f.IsDirectory ? $"[DIR] {f.Name}" : f.Name));
+    }
+
+    [Description("Get the diff of changes made in the current session")]
+    public async Task<string> GetSessionDiff(
+        CancellationToken cancellationToken = default)
+    {
+        if (_sessionId == null)
+            return "No active session";
+
+        var diffs = await _client.GetSessionDiffAsync(_sessionId, directory: _directory, cancellationToken: cancellationToken);
+        return string.Join("\n\n", diffs.Select(d =>
+            $"--- {d.Path}\n{d.Content}"));
+    }
+
+    [Description("Get git status and version control information")]
+    public async Task<string> GetVcsInfo(
+        CancellationToken cancellationToken = default)
+    {
+        var vcs = await _client.GetVcsInfoAsync(_directory, cancellationToken);
+        return $"Branch: {vcs.Branch}\nCommit: {vcs.Sha}\nDirty: {vcs.Dirty}";
     }
 }
 ```
@@ -170,33 +175,37 @@ public class OpencodeTools
 ### Step 2: Register Tools with Agent
 
 ```csharp
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
-using Azure.AI.OpenAI;
-using Azure.Identity;
+using LionFire.OpenCode.Serve;
 
-// Create OpencodeAI client
-var opcodeClient = new OpencodeClient("oc_sk_your_api_key");
+// Create OpenCode client (connects to local opencode serve)
+await using var openCodeClient = new OpenCodeClient("http://localhost:9377");
 
-// Create tools from OpencodeAI wrapper
-var toolsFactory = new AIFunctionFactory();
-var opcodeTools = toolsFactory.CreateFromObject(new OpencodeTools(opcodeClient));
+// Create tools from OpenCode wrapper
+var openCodeTools = new OpenCodeTools(openCodeClient, "/path/to/project");
+var tools = AIFunctionFactory.Create(openCodeTools);
 
-// Create agent with OpenAI (or any other provider)
+// Create agent with any LLM provider (e.g., Azure OpenAI)
 var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!;
-var deploymentName = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT_NAME")!;
+var deploymentName = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")!;
 
 var agent = new AzureOpenAIClient(new Uri(endpoint), new AzureCliCredential())
-    .GetChatCompletionClient(deploymentName)
-    .CreateAIAgent(
-        name: "DevAssistant",
-        instructions: "You are a helpful development assistant. Use the code tools when users ask about code.",
-        tools: opcodeTools);
+    .GetChatClient(deploymentName)
+    .AsIChatClient()
+    .AsBuilder()
+    .UseFunctionInvocation()
+    .Build();
 
-// Agent can now use OpencodeAI tools automatically
-var response = await agent.RunAsync(
-    "Generate a C# function to validate email addresses using regex");
+var options = new ChatOptions { Tools = tools };
 
+// Agent can now use OpenCode tools automatically
+var messages = new List<ChatMessage>
+{
+    new(ChatRole.System, "You are a helpful coding assistant. Use the available tools to help with code tasks."),
+    new(ChatRole.User, "Find all files that contain 'TODO' comments and summarize what needs to be done")
+};
+
+var response = await agent.GetResponseAsync(messages, options);
 Console.WriteLine(response);
 ```
 
@@ -206,96 +215,91 @@ Console.WriteLine(response);
 // Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
-// Register OpencodeAI
-builder.Services.AddOpencodeClient(options =>
+// Register OpenCode client
+builder.Services.AddSingleton<IOpenCodeClient>(sp =>
+    new OpenCodeClient(builder.Configuration["OpenCode:BaseUrl"] ?? "http://localhost:9377"));
+
+// Register OpenCode tools (scoped per request to maintain session state)
+builder.Services.AddScoped(sp =>
 {
-    options.ApiKey = builder.Configuration["OpenCode:ApiKey"];
+    var client = sp.GetRequiredService<IOpenCodeClient>();
+    var projectDir = builder.Configuration["OpenCode:ProjectDirectory"] ?? ".";
+    return new OpenCodeTools(client, projectDir);
 });
 
-// Register OpencodeTools
-builder.Services.AddSingleton<OpencodeTools>();
-
-// Register tools factory
-builder.Services.AddSingleton(sp =>
+// Register tool functions
+builder.Services.AddScoped(sp =>
 {
-    var opcodeTools = sp.GetRequiredService<OpencodeTools>();
-    var factory = new AIFunctionFactory();
-    return factory.CreateFromObject(opcodeTools).ToList();
-});
-
-// Register agent
-builder.Services.AddSingleton(sp =>
-{
-    var chatClient = ...; // Your chat client
-    var tools = sp.GetRequiredService<List<AIFunction>>();
-
-    return chatClient.CreateAIAgent(
-        name: "DevAssistant",
-        tools: tools);
+    var tools = sp.GetRequiredService<OpenCodeTools>();
+    return AIFunctionFactory.Create(tools);
 });
 ```
 
 ## Usage Examples
 
-### Example 1: Code Generation Task
+### Example 1: Code Understanding Task
 
 ```csharp
-var thread = agent.GetNewThread();
+var messages = new List<ChatMessage>
+{
+    new(ChatRole.User, "What does the UserService class do? Show me the main methods.")
+};
 
-var response = await agent.RunAsync(
-    "I need a Python function that reads a CSV file and converts it to JSON",
-    thread);
-
-// Agent automatically calls GenerateCodeTool with:
-// - prompt: "function that reads a CSV file and converts it to JSON"
-// - language: "Python"
-
-Console.WriteLine(response);
-// Output: Here's a Python function that does that:
-// [generated code from OpencodeAI]
+// Agent automatically:
+// 1. Calls FindSymbols("UserService") to locate the class
+// 2. Calls ReadFile to get the source code
+// 3. Summarizes the functionality
+var response = await agent.GetResponseAsync(messages, options);
 ```
 
-### Example 2: Code Review Workflow
+### Example 2: Code Modification Task
 
 ```csharp
-var code = @"
-def process_data(data):
-    result = []
-    for i in range(len(data)):
-        if data[i] > 0:
-            result.append(data[i] * 2)
-    return result
-";
+var messages = new List<ChatMessage>
+{
+    new(ChatRole.User, "Add input validation to the RegisterUser method in UserService.cs")
+};
 
-var response = await agent.RunAsync(
-    $"Please review this Python code for issues:\n{code}",
-    thread);
+// Agent automatically:
+// 1. Calls ReadFile("UserService.cs") to get current code
+// 2. Calls SendPrompt with the modification request
+// 3. Returns the suggested changes
+var response = await agent.GetResponseAsync(messages, options);
 
-// Agent automatically calls ReviewCodeTool
-// Returns issues found by OpencodeAI
+// Get the diff of changes
+var diff = await openCodeTools.GetSessionDiff();
+Console.WriteLine($"Changes made:\n{diff}");
 ```
 
-### Example 3: Multi-Step Conversation
+### Example 3: Code Search and Analysis
 
 ```csharp
-var thread = agent.GetNewThread();
+var messages = new List<ChatMessage>
+{
+    new(ChatRole.User, "Find all usages of deprecated APIs and suggest replacements")
+};
 
-// Step 1: Generate initial code
-await agent.RunAsync(
-    "Generate a TypeScript class for a shopping cart",
-    thread);
+// Agent automatically:
+// 1. Calls FindText for deprecated patterns
+// 2. Calls SendPrompt to analyze and suggest replacements
+var response = await agent.GetResponseAsync(messages, options);
+```
 
-// Step 2: Explain the code
-await agent.RunAsync(
-    "Can you explain how the addItem method works?",
-    thread);
-// Agent remembers previous code and calls ExplainCodeTool
+### Example 4: Multi-Step Conversation
 
-// Step 3: Improve the code
-var response = await agent.RunAsync(
-    "Refactor this to be more maintainable",
-    thread);
-// Agent calls SuggestRefactoringTool
+```csharp
+// Start a coding session
+messages.Add(new(ChatRole.User, "Let's refactor the authentication module"));
+
+// Agent creates session and responds
+var response1 = await agent.GetResponseAsync(messages, options);
+messages.Add(response1.Message);
+
+// Continue the conversation
+messages.Add(new(ChatRole.User, "Now add unit tests for the changes"));
+var response2 = await agent.GetResponseAsync(messages, options);
+
+// The OpenCode session maintains context across prompts
 ```
 
 ## Tool Invocation Flow
@@ -303,153 +307,251 @@ var response = await agent.RunAsync(
 ```mermaid
 sequenceDiagram
     participant User
-    participant Agent
-    participant LLM
-    participant OpencodeTools
-    participant OpencodeClient
+    participant Agent as Agent Framework Agent
+    participant LLM as LLM Provider
+    participant Tools as OpenCode Tools
+    participant Client as OpenCodeClient
+    participant Server as opencode serve
 
-    User->>Agent: "Generate a sorting function in Python"
+    User->>Agent: "Add error handling to the API endpoints"
     Agent->>LLM: Process message with available tools
-    LLM->>LLM: Decides to use GenerateCodeTool
-    LLM->>Agent: Tool call request
-    Agent->>OpencodeTools: GenerateCode(prompt, "Python")
-    OpencodeTools->>OpencodeClient: GenerateCodeAsync(request)
-    OpencodeClient-->>OpencodeTools: Generated code
-    OpencodeTools-->>Agent: Code result
-    Agent->>LLM: Tool result
-    LLM->>Agent: Final response with code
-    Agent-->>User: "Here's a Python sorting function: [code]"
+    LLM->>LLM: Decides to use FindFiles, ReadFile, SendPrompt
+
+    LLM->>Agent: Tool call: FindFiles("*Controller.cs")
+    Agent->>Tools: FindFiles("*Controller.cs")
+    Tools->>Client: FindFilesAsync(...)
+    Client->>Server: GET /find/files?query=*Controller.cs
+    Server-->>Client: ["UserController.cs", "OrderController.cs"]
+    Client-->>Tools: File list
+    Tools-->>Agent: File list string
+
+    LLM->>Agent: Tool call: ReadFile("UserController.cs")
+    Agent->>Tools: ReadFile("UserController.cs")
+    Tools->>Client: ReadFileAsync(...)
+    Client->>Server: GET /file/content?path=UserController.cs
+    Server-->>Client: File content
+    Client-->>Tools: Content
+    Tools-->>Agent: File content string
+
+    LLM->>Agent: Tool call: SendPrompt("Add error handling to: [code]")
+    Agent->>Tools: SendPrompt(...)
+    Tools->>Client: CreateSession + PromptAsync
+    Client->>Server: POST /session + POST /session/{id}/message
+    Server-->>Client: AI response with code changes
+    Client-->>Tools: Response
+    Tools-->>Agent: Modified code
+
+    Agent->>LLM: Tool results
+    LLM->>Agent: Final response with summary
+    Agent-->>User: "I've added try-catch blocks to... [details]"
 ```
 
 ## Advanced Patterns
 
-### Pattern 1: Streaming Code Generation
+### Pattern 1: Session Management Tools
 
 ```csharp
-public class OpencodeStreamingTools
+public class OpenCodeSessionTools
 {
-    [Description("Generate code with streaming progress")]
-    public async IAsyncEnumerable<string> StreamGenerateCode(
-        string prompt,
-        string language,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    private readonly IOpenCodeClient _client;
+    private readonly string _directory;
+    private readonly Dictionary<string, string> _namedSessions = new();
+
+    [Description("Create a new named session for a specific task")]
+    public async Task<string> CreateNamedSession(
+        [Description("Name for this session (e.g., 'refactoring', 'bugfix')")] string name,
+        [Description("Optional title for the session")] string? title = null,
+        CancellationToken cancellationToken = default)
     {
-        var request = new GenerateCodeRequest
+        var session = await _client.CreateSessionAsync(
+            new CreateSessionRequest { Title = title ?? name },
+            _directory,
+            cancellationToken);
+
+        _namedSessions[name] = session.Id;
+        return $"Created session '{name}' with ID {session.Id}";
+    }
+
+    [Description("Send a prompt to a specific named session")]
+    public async Task<string> SendToSession(
+        [Description("Name of the session to use")] string sessionName,
+        [Description("The prompt to send")] string prompt,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_namedSessions.TryGetValue(sessionName, out var sessionId))
+            return $"Session '{sessionName}' not found. Create it first.";
+
+        var request = new SendMessageRequest
         {
-            Prompt = prompt,
-            ProgrammingLanguage = Enum.Parse<ProgrammingLanguage>(language, true)
+            Parts = new List<PartInput> { new TextPartInput { Type = "text", Text = prompt } }
         };
 
-        await foreach (var chunk in _client.StreamCodeAsync(request, cancellationToken))
-        {
-            yield return chunk.Code;
-        }
+        var response = await _client.PromptAsync(sessionId, request, _directory, cancellationToken);
+        return ExtractTextFromResponse(response);
     }
-}
-```
 
-### Pattern 2: Context-Aware Tools
-
-```csharp
-public class ContextAwareOpencodeTools
-{
-    private readonly IOpencodeClient _client;
-    private readonly Dictionary<string, string> _codeContext = new();
-
-    [Description("Generate code with awareness of previous code in the conversation")]
-    public async Task<string> GenerateCodeWithContext(
-        string prompt,
-        string language,
-        string? relatedCodeKey = null,
+    [Description("Fork an existing session to try an alternative approach")]
+    public async Task<string> ForkSession(
+        [Description("Name of the session to fork")] string fromSession,
+        [Description("Name for the new forked session")] string newName,
         CancellationToken cancellationToken = default)
     {
-        var fullPrompt = prompt;
+        if (!_namedSessions.TryGetValue(fromSession, out var sourceId))
+            return $"Session '{fromSession}' not found";
 
-        // Include related code from context if specified
-        if (relatedCodeKey != null && _codeContext.TryGetValue(relatedCodeKey, out var relatedCode))
-        {
-            fullPrompt = $"Building on this existing code:\n{relatedCode}\n\n{prompt}";
-        }
-
-        var result = await _client.GenerateCodeAsync(
-            new GenerateCodeRequest { Prompt = fullPrompt, ... },
-            cancellationToken);
-
-        // Store generated code for future context
-        _codeContext[$"{language}_{DateTime.UtcNow.Ticks}"] = result.Code;
-
-        return result.Code;
+        var forked = await _client.ForkSessionAsync(sourceId, directory: _directory, cancellationToken: cancellationToken);
+        _namedSessions[newName] = forked.Id;
+        return $"Forked '{fromSession}' to '{newName}'";
     }
 }
 ```
 
-### Pattern 3: File Operations Integration
+### Pattern 2: Code Analysis Tools
 
 ```csharp
-public class OpencodeFileTools
+public class OpenCodeAnalysisTools
 {
-    private readonly IOpencodeClient _client;
+    private readonly IOpenCodeClient _client;
+    private readonly string _directory;
 
-    [Description("Read a code file, analyze it, and suggest improvements")]
+    [Description("Analyze a file and provide a structured summary including classes, methods, and dependencies")]
     public async Task<string> AnalyzeFile(
-        string filePath,
+        [Description("Path to the file to analyze")] string path,
         CancellationToken cancellationToken = default)
     {
-        // Read file
-        var fileContent = await _client.ReadFileAsync(
-            new ReadFileRequest { Path = filePath },
+        // Get file content
+        var content = await _client.ReadFileAsync(path, _directory, cancellationToken);
+
+        // Find symbols in the file
+        var symbols = await _client.FindSymbolsAsync(
+            Path.GetFileNameWithoutExtension(path),
+            _directory,
             cancellationToken);
 
-        // Review code
-        var review = await _client.ReviewCodeAsync(
-            fileContent.Content,
-            fileContent.Language,
-            cancellationToken: cancellationToken);
+        var fileSymbols = symbols.Where(s => s.Location?.Path == path).ToList();
 
-        // Suggest refactoring
-        var refactoring = await _client.SuggestRefactoringAsync(
-            fileContent.Content,
-            fileContent.Language,
-            cancellationToken: cancellationToken);
+        // Create a session and ask for analysis
+        var session = await _client.CreateSessionAsync(directory: _directory, cancellationToken: cancellationToken);
 
-        return $"File: {filePath}\n" +
-               $"Review Score: {review.Score}/10\n" +
-               $"Issues: {review.Issues.Count}\n" +
-               $"Refactoring Suggestions: {refactoring.Reasoning}";
+        var prompt = $"Analyze this code and provide a brief structured summary:\n\n```\n{content.Content}\n```\n\n" +
+                     "Include: purpose, main classes/functions, dependencies, potential issues.";
+
+        var request = new SendMessageRequest
+        {
+            Parts = new List<PartInput> { new TextPartInput { Type = "text", Text = prompt } }
+        };
+
+        var response = await _client.PromptAsync(session.Id, request, _directory, cancellationToken);
+
+        return $"Symbols found: {fileSymbols.Count}\n\n{ExtractTextFromResponse(response)}";
+    }
+
+    [Description("Search for potential issues in the codebase")]
+    public async Task<string> FindIssues(
+        [Description("Type of issues to search for: security, performance, deprecated, todo")] string issueType,
+        CancellationToken cancellationToken = default)
+    {
+        var searchPatterns = issueType.ToLower() switch
+        {
+            "security" => new[] { "password", "secret", "api_key", "eval(", "exec(" },
+            "performance" => new[] { "SELECT *", "N+1", "sleep(", "Thread.Sleep" },
+            "deprecated" => new[] { "[Obsolete", "@deprecated", "DEPRECATED" },
+            "todo" => new[] { "TODO", "FIXME", "HACK", "XXX" },
+            _ => new[] { issueType }
+        };
+
+        var allResults = new List<string>();
+        foreach (var pattern in searchPatterns)
+        {
+            var results = await _client.FindTextAsync(pattern, _directory, cancellationToken);
+            allResults.AddRange(results.Select(r => $"[{pattern}] {r}"));
+        }
+
+        return allResults.Count > 0
+            ? string.Join("\n", allResults)
+            : $"No {issueType} issues found";
+    }
+}
+```
+
+### Pattern 3: Permission Handling
+
+```csharp
+public class OpenCodeToolsWithPermissions
+{
+    private readonly IOpenCodeClient _client;
+    private readonly string _directory;
+    private readonly Func<string, Task<bool>> _permissionCallback;
+
+    public OpenCodeToolsWithPermissions(
+        IOpenCodeClient client,
+        string directory,
+        Func<string, Task<bool>> permissionCallback)
+    {
+        _client = client;
+        _directory = directory;
+        _permissionCallback = permissionCallback;
+    }
+
+    [Description("Execute a shell command (requires approval)")]
+    public async Task<string> ExecuteShell(
+        [Description("The shell command to execute")] string command,
+        CancellationToken cancellationToken = default)
+    {
+        // Get user approval
+        var approved = await _permissionCallback($"Execute shell command: {command}");
+        if (!approved)
+            return "Command execution was not approved";
+
+        // Create session and execute
+        var session = await _client.CreateSessionAsync(directory: _directory, cancellationToken: cancellationToken);
+        await _client.ExecuteSessionShellAsync(
+            session.Id,
+            new ExecuteShellRequest { Command = command },
+            _directory,
+            cancellationToken);
+
+        return $"Command executed: {command}";
     }
 }
 ```
 
 ## Comparison with Other Options
 
-| Aspect | Tools Approach | OpencodeAgent (Option 1) |
-|--------|---------------|-------------------------|
-| **Flexibility** | Any agent can use OpencodeAI | OpencodeAI is the agent |
-| **Model Choice** | Use any LLM, delegate to OpencodeAI | OpencodeAI model only |
-| **Cost** | Use cheaper models + OpencodeAI when needed | All requests to OpencodeAI |
-| **Complexity** | Simple - just register tools | Moderate - implement AIAgent |
-| **Control** | LLM decides when to use tools | Direct control over OpencodeAI |
-| **Multi-Agent** | One agent with tools | Multiple agents coordinating |
+| Aspect | Tools Approach | OpenCodeChatClient (Option 1) |
+|--------|---------------|------------------------------|
+| **Architecture** | Any LLM orchestrates OpenCode tools | OpenCode IS the agent |
+| **Model Choice** | Orchestrator + OpenCode's model | OpenCode's configured model only |
+| **Use Case** | Multi-tool orchestration | Direct OpenCode interaction |
+| **Complexity** | Moderate - tool registration | Simple - standard IChatClient |
+| **Context** | Manual session management | Automatic conversation context |
+| **Cost** | Two LLMs potentially | Single LLM via OpenCode |
 
 ## Best Use Cases
 
-1. **Mixed Workloads**: General chat + occasional code tasks
-2. **Cost Optimization**: Use GPT-3.5 for chat, OpencodeAI for code
-3. **Existing Agents**: Add code capabilities to existing Agent Framework agents
-4. **Tool Ecosystem**: OpencodeAI as one of many specialized tools
-5. **Automatic Delegation**: Let LLM decide when code expertise is needed
+1. **Multi-Tool Workflows**: When OpenCode is one of several tools (e.g., with database, API, documentation tools)
+2. **Model Arbitrage**: Use a cheaper orchestrator model, delegate complex code tasks to OpenCode
+3. **Existing Agent Systems**: Add OpenCode capabilities to existing Agent Framework deployments
+4. **Custom Orchestration**: When you need fine-grained control over when and how to use OpenCode
+5. **Hybrid Workflows**: Combine OpenCode's coding abilities with other specialized tools
 
 ## Limitations
 
-1. **Tool Call Overhead**: Each code operation requires an LLM tool call decision
-2. **Context Handling**: Harder to maintain code context across multiple tools
-3. **Streaming Limitations**: Some Agent Framework versions may not support streaming tools
-4. **Error Handling**: Tool failures must be handled by the LLM agent
+1. **Session State**: Each tool call may create new sessions unless managed explicitly
+2. **Tool Call Overhead**: The orchestrating LLM must decide when to call tools
+3. **Context Fragmentation**: Conversation context is split between orchestrator and OpenCode sessions
+4. **Latency**: Tool calls add round-trip overhead through the orchestrator
+
+## Prerequisites
+
+1. **OpenCode Server Running**: Start with `opencode serve` on the project directory
+2. **Provider Authentication**: Ensure OpenCode has valid API keys for the configured AI provider
+3. **Project Context**: Point tools at the correct project directory
 
 ## Next Steps
 
-1. Implement `OpencodeTools` wrapper class
-2. Create integration tests with different agent providers
-3. Add telemetry for tool usage tracking
-4. Document best practices for tool descriptions
-5. Consider adding more specialized tools (e.g., `FixBugTool`, `OptimizeCodeTool`)
+1. Implement `OpenCodeTools` wrapper class matching actual API
+2. Add session lifecycle management helpers
+3. Create integration tests with mock OpenCode server
+4. Add streaming support for long-running operations
+5. Document permission handling patterns
