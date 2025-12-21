@@ -1,0 +1,162 @@
+@using AgUi.IDE.BlazorServer.Services
+
+<div class="tree-node @(Node.IsSelected ? "selected" : "")" style="padding-left: @(_indent)px;">
+    <div class="node-content" @onclick="HandleClick" @ondblclick="HandleDoubleClick">
+        @if (Node.IsDirectory)
+        {
+            <span class="expand-icon" @onclick:stopPropagation @onclick="HandleExpandClick">
+                @if (Node.IsLoading)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Style="width: 14px; height: 14px;" />
+                }
+                else
+                {
+                    <MudIcon Icon="@(Node.IsExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                             Size="Size.Small"
+                             Class="expand-arrow" />
+                }
+            </span>
+        }
+        else
+        {
+            <span class="expand-icon-spacer"></span>
+        }
+        <MudIcon Icon="@Node.GetMudIcon()" Size="Size.Small" Class="@($"node-icon {GetIconColorClass()}")" />
+        <span class="node-name">@Node.Name</span>
+    </div>
+</div>
+
+@if (Node.IsExpanded && Node.Children.Count > 0)
+{
+    <div class="tree-children">
+        @foreach (var child in Node.Children)
+        {
+            <FileTreeNodeView Node="child"
+                              Level="@(Level + 1)"
+                              OnSelect="OnSelect"
+                              OnDoubleClick="OnDoubleClick"
+                              OnExpand="OnExpand" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FileTreeNode Node { get; set; } = null!;
+    [Parameter] public int Level { get; set; }
+    [Parameter] public EventCallback<FileTreeNode> OnSelect { get; set; }
+    [Parameter] public EventCallback<FileTreeNode> OnDoubleClick { get; set; }
+    [Parameter] public EventCallback<FileTreeNode> OnExpand { get; set; }
+
+    private int _indent => Level * 16 + 4;
+
+    private async Task HandleClick()
+    {
+        await OnSelect.InvokeAsync(Node);
+    }
+
+    private async Task HandleDoubleClick()
+    {
+        await OnDoubleClick.InvokeAsync(Node);
+    }
+
+    private async Task HandleExpandClick()
+    {
+        await OnExpand.InvokeAsync(Node);
+    }
+
+    private string GetIconColorClass()
+    {
+        return Node.Icon switch
+        {
+            FileTreeNode.IconFolder => "icon-folder",
+            FileTreeNode.IconCSharp => "icon-csharp",
+            FileTreeNode.IconRazor => "icon-razor",
+            FileTreeNode.IconJson => "icon-json",
+            FileTreeNode.IconMarkdown => "icon-markdown",
+            _ => "icon-default"
+        };
+    }
+}
+
+<style>
+    .tree-node {
+        user-select: none;
+    }
+
+    .node-content {
+        display: flex;
+        align-items: center;
+        padding: 3px 8px 3px 0;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .node-content:hover {
+        background: var(--opencode-bg-highlight, rgba(255,255,255,0.05));
+    }
+
+    .tree-node.selected > .node-content {
+        background: var(--opencode-bg-selected, rgba(59, 130, 246, 0.2));
+    }
+
+    .expand-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .expand-icon-spacer {
+        width: 20px;
+        flex-shrink: 0;
+    }
+
+    .expand-arrow {
+        font-size: 18px;
+        transition: transform 0.1s ease;
+    }
+
+    .node-icon {
+        margin-right: 6px;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .icon-folder {
+        color: #fbbf24;
+    }
+
+    .icon-csharp {
+        color: #a78bfa;
+    }
+
+    .icon-razor {
+        color: #60a5fa;
+    }
+
+    .icon-json {
+        color: #fbbf24;
+    }
+
+    .icon-markdown {
+        color: #6ba3ff;
+    }
+
+    .icon-default {
+        color: var(--opencode-text-weak, #a8a29e);
+    }
+
+    .node-name {
+        font-size: 13px;
+        color: var(--opencode-text-base, #e6e1dc);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tree-children {
+        /* Children container */
+    }
+</style>

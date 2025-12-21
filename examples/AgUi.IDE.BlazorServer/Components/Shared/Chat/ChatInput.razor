@@ -1,0 +1,899 @@
+@using AgUi.IDE.BlazorServer.Services
+@using LionFire.OpenCode.Serve.Models
+@inject IdeStateService IdeState
+@inject OpenCodeIdeService OpenCodeService
+@implements IDisposable
+
+<div class="chat-input-wrapper">
+    <div class="chat-input-form @(_isFocused ? "focused" : "")">
+        <!-- Input area with placeholder -->
+        <div class="input-area">
+            <div class="input-container">
+                <textarea @ref="_textAreaRef"
+                          @bind="_inputText"
+                          @bind:event="oninput"
+                          @onfocus="OnFocus"
+                          @onblur="OnBlur"
+                          @onkeydown="HandleKeyDown"
+                          @onkeydown:preventDefault="_preventEnter"
+                          rows="1"
+                          disabled="@IsDisabled"
+                          class="chat-textarea"></textarea>
+                @if (string.IsNullOrEmpty(_inputText))
+                {
+                    <div class="placeholder">Ask anything... <span class="placeholder-example">"@GetPlaceholderExample()"</span></div>
+                }
+            </div>
+        </div>
+
+        <!-- Toolbar below input -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <!-- Agent selector dropdown -->
+                <div class="selector-button" @onclick="ToggleAgentMenu" @onclick:stopPropagation="true">
+                    <span class="selector-value">@GetCurrentAgentDisplay()</span>
+                    <svg class="dropdown-icon" fill="none" viewBox="0 0 20 20">
+                        <path d="M6.6665 8.33325L9.99984 11.6666L13.3332 8.33325" stroke="currentColor" stroke-linecap="square"></path>
+                    </svg>
+                </div>
+
+                <!-- Model selector -->
+                <div class="selector-button model-selector" @onclick="OpenModelDialog" @onclick:stopPropagation="true">
+                    <span class="model-name">@(IdeState.CurrentModelName ?? "Select Model")</span>
+                    <span class="provider-name">@(IdeState.CurrentProviderName ?? "")</span>
+                    <svg class="dropdown-icon" fill="none" viewBox="0 0 20 20">
+                        <path d="M6.6665 8.33325L9.99984 11.6666L13.3332 8.33325" stroke="currentColor" stroke-linecap="square"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Submit button -->
+            <button type="button"
+                    class="submit-button @(CanSend ? "" : "disabled")"
+                    disabled="@(!CanSend)"
+                    @onclick="SendMessage">
+                <svg fill="none" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M9.99991 2.24121L16.0921 8.33343L15.2083 9.21731L10.6249 4.63397V17.5001H9.37492V4.63398L4.7916 9.21731L3.90771 8.33343L9.99991 2.24121Z" fill="currentColor"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Agent dropdown (inline) -->
+    @if (_showAgentMenu)
+    {
+        <div class="dropdown-backdrop" @onclick="CloseMenus"></div>
+        <div class="agent-dropdown">
+            @foreach (var agent in IdeState.AvailableAgents)
+            {
+                <div class="dropdown-item @(IdeState.CurrentAgentId == agent.Id ? "selected" : "")"
+                     @onclick="() => SelectAgent(agent.Id)">
+                    @ToTitleCase(agent.Name)
+                </div>
+            }
+            @if (IdeState.CurrentAgentId != null)
+            {
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" @onclick="() => SelectAgent(null)">
+                    Default (no agent)
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Model selection dialog (modal overlay) -->
+@if (_showModelDialog)
+{
+    <div class="dialog-overlay" @onclick="CloseModelDialog">
+        <div class="model-dialog" @onclick:stopPropagation="true">
+            @if (_showProviderSelection)
+            {
+                <!-- Provider selection view -->
+                <div class="dialog-header">
+                    <span class="dialog-title">Select provider</span>
+                    <button class="dialog-close" @onclick="CloseModelDialog">
+                        <svg fill="none" viewBox="0 0 20 20" width="16" height="16">
+                            <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="dialog-search">
+                    <input type="text"
+                           @ref="_searchInputRef"
+                           @bind="_modelSearchText"
+                           @bind:event="oninput"
+                           placeholder="Search providers..."
+                           class="search-input" />
+                </div>
+                <div class="dialog-content">
+                    @foreach (var provider in GetFilteredProviders())
+                    {
+                        <div class="provider-item @(provider.Id == _selectedProviderId ? "selected" : "")"
+                             @onclick="() => SelectProvider(provider.Id)">
+                            <div class="provider-item-left">
+                                <span class="provider-item-name">@provider.Name</span>
+                                @if (provider.Id == "opencode")
+                                {
+                                    <span class="provider-badge recommended">Recommended</span>
+                                }
+                            </div>
+                            <span class="provider-item-models">@(provider.Models?.Count ?? 0) models</span>
+                        </div>
+                    }
+                    @if (!GetFilteredProviders().Any())
+                    {
+                        <div class="no-results">No providers found</div>
+                    }
+                </div>
+            }
+            else
+            {
+                <!-- Model selection view -->
+                <div class="dialog-header">
+                    <span class="dialog-title">Select model</span>
+                    <span class="dialog-subtitle">@(SelectedProvider?.Name ?? "All Providers")</span>
+                    <button class="dialog-close" @onclick="CloseModelDialog">
+                        <svg fill="none" viewBox="0 0 20 20" width="16" height="16">
+                            <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="dialog-search">
+                    <input type="text"
+                           @ref="_searchInputRef"
+                           @bind="_modelSearchText"
+                           @bind:event="oninput"
+                           @onkeydown="HandleSearchKeyDown"
+                           placeholder="Search models..."
+                           class="search-input" />
+                </div>
+                <div class="dialog-content">
+                    @foreach (var item in GetFilteredModels())
+                    {
+                        <div class="model-item @(item.Model.Id == IdeState.CurrentModelId && item.Provider.Id == IdeState.CurrentProviderId ? "selected" : "")"
+                             @onclick="() => SelectModel(item.Provider, item.Model)">
+                            <div class="model-item-left">
+                                <span class="model-item-name">@item.Model.Name</span>
+                                @if (IsModelFree(item.Model))
+                                {
+                                    <span class="model-badge free">Free</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (!GetFilteredModels().Any())
+                    {
+                        <div class="no-results">No models found</div>
+                    }
+                </div>
+                <div class="dialog-footer">
+                    <button class="connect-provider-button" @onclick="ShowProviderSelection">
+                        <svg fill="none" viewBox="0 0 20 20" width="14" height="14">
+                            <path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Connect to provider
+                    </button>
+                    <div class="toggle-group">
+                        <button class="toggle-button @(_showFreeOnly ? "active" : "")" @onclick="() => _showFreeOnly = true">Free</button>
+                        <button class="toggle-button @(!_showFreeOnly ? "active" : "")" @onclick="() => _showFreeOnly = false">All</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private ElementReference _textAreaRef;
+    private ElementReference _searchInputRef;
+    private string _inputText = "";
+    private string _modelSearchText = "";
+    private bool _isFocused;
+    private bool _showModelDialog;
+    private bool _showAgentMenu;
+    private bool _preventEnter;
+    private bool _showFreeOnly;
+
+    // Provider selection state
+    private string? _selectedProviderId;
+    private bool _showProviderSelection;
+
+    private bool CanSend => !IsDisabled && !string.IsNullOrWhiteSpace(_inputText);
+
+    private Provider? SelectedProvider => IdeState.AvailableProviders.FirstOrDefault(p => p.Id == _selectedProviderId);
+
+    // Track previous state for ShouldRender optimization
+    private bool _previousIsDisabled;
+    private string _previousInputText = "";
+
+    /// <summary>
+    /// Optimize rendering by only re-rendering when relevant state changes.
+    /// </summary>
+    protected override bool ShouldRender()
+    {
+        // Re-render if disabled state changed
+        if (_previousIsDisabled != IsDisabled)
+        {
+            _previousIsDisabled = IsDisabled;
+            return true;
+        }
+
+        // Re-render if input text changed
+        if (_previousInputText != _inputText)
+        {
+            _previousInputText = _inputText;
+            return true;
+        }
+
+        // Always render for UI state changes (menus, dialogs, etc.)
+        return true;
+    }
+
+    protected override void OnInitialized()
+    {
+        IdeState.OnStateChanged += OnStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_showModelDialog && _searchInputRef.Id != null)
+        {
+            try
+            {
+                await _searchInputRef.FocusAsync();
+            }
+            catch { }
+        }
+    }
+
+    private void OnStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetPlaceholderExample()
+    {
+        return "Add unit tests for the user service";
+    }
+
+    private string GetCurrentAgentDisplay()
+    {
+        if (string.IsNullOrEmpty(IdeState.CurrentAgentId))
+            return "build";
+        return IdeState.CurrentAgentId.ToLower();
+    }
+
+    private void OnFocus() => _isFocused = true;
+    private void OnBlur() => _isFocused = false;
+
+    private void OpenModelDialog()
+    {
+        _modelSearchText = "";
+        _showModelDialog = true;
+        _showAgentMenu = false;
+        _showProviderSelection = false;
+        // Default to current provider, or first available
+        _selectedProviderId = IdeState.CurrentProviderId
+            ?? IdeState.AvailableProviders.FirstOrDefault()?.Id;
+    }
+
+    private void CloseModelDialog()
+    {
+        _showModelDialog = false;
+    }
+
+    private void ToggleAgentMenu()
+    {
+        _showModelDialog = false;
+        _showAgentMenu = !_showAgentMenu;
+    }
+
+    private void CloseMenus()
+    {
+        _showModelDialog = false;
+        _showAgentMenu = false;
+    }
+
+    private record ModelWithProvider(Provider Provider, Model Model);
+
+    private IEnumerable<ModelWithProvider> GetFilteredModels()
+    {
+        var search = _modelSearchText?.Trim().ToLowerInvariant() ?? "";
+        var provider = SelectedProvider;
+
+        if (provider?.Models == null) yield break;
+
+        foreach (var model in provider.Models)
+        {
+            // Filter by free if toggle is active
+            if (_showFreeOnly && !IsModelFree(model)) continue;
+
+            if (string.IsNullOrEmpty(search) ||
+                model.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                model.Id.Contains(search, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return new ModelWithProvider(provider, model);
+            }
+        }
+    }
+
+    private void ShowProviderSelection()
+    {
+        _showProviderSelection = true;
+        _modelSearchText = "";
+    }
+
+    private void SelectProvider(string providerId)
+    {
+        _selectedProviderId = providerId;
+        _showProviderSelection = false;
+        _modelSearchText = "";
+    }
+
+    private IEnumerable<Provider> GetFilteredProviders()
+    {
+        var search = _modelSearchText?.Trim().ToLowerInvariant() ?? "";
+
+        // Sort: opencode first, then anthropic, then alphabetically
+        var sorted = IdeState.AvailableProviders
+            .OrderBy(p => p.Id == "opencode" ? 0 : p.Id == "anthropic" ? 1 : 2)
+            .ThenBy(p => p.Name);
+
+        foreach (var provider in sorted)
+        {
+            if (string.IsNullOrEmpty(search) ||
+                provider.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                provider.Id.Contains(search, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return provider;
+            }
+        }
+    }
+
+    private void SelectModel(Provider provider, Model model)
+    {
+        IdeState.SetModel(provider.Id, provider.Name, model.Id, model.Name);
+        _showModelDialog = false;
+    }
+
+    private async Task SelectAgent(string? agentId)
+    {
+        await OpenCodeService.SwitchAgentAsync(agentId);
+        _showAgentMenu = false;
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CloseModelDialog();
+        }
+        else if (e.Key == "Enter")
+        {
+            var firstMatch = GetFilteredModels().FirstOrDefault();
+            if (firstMatch != null)
+            {
+                SelectModel(firstMatch.Provider, firstMatch.Model);
+            }
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            _preventEnter = true;
+            await SendMessage();
+            _preventEnter = false;
+        }
+        else if (e.Key == "Escape")
+        {
+            CloseMenus();
+        }
+        else
+        {
+            _preventEnter = false;
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!CanSend) return;
+
+        var message = _inputText.Trim();
+        _inputText = "";
+        CloseMenus();
+
+        await OnSend.InvokeAsync(message);
+    }
+
+    public async Task FocusAsync()
+    {
+        await _textAreaRef.FocusAsync();
+    }
+
+    public void Dispose()
+    {
+        IdeState.OnStateChanged -= OnStateChanged;
+    }
+
+    private static string ToTitleCase(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return char.ToUpper(text[0]) + text.Substring(1).ToLower();
+    }
+
+    private static bool IsModelFree(Model model)
+    {
+        if (model.Cost == null) return false;
+        return model.Cost.Input == 0 && model.Cost.Output == 0;
+    }
+}
+
+<style>
+    .chat-input-wrapper {
+        padding: 12px;
+        position: relative;
+    }
+
+    .chat-input-form {
+        background: var(--surface-raised-stronger);
+        border: 1px solid var(--border-strong-base);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .chat-input-form.focused {
+        border-color: transparent;
+        box-shadow: var(--shadow-xs-border-select);
+    }
+
+    .input-area {
+        max-height: 240px;
+        overflow-y: auto;
+    }
+
+    .input-container {
+        position: relative;
+    }
+
+    .chat-textarea {
+        width: 100%;
+        padding: 12px 20px;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-strong);
+        font-size: var(--font-size-base);
+        line-height: 1.5;
+        resize: none;
+        font-family: var(--font-family-sans);
+        min-height: 44px;
+    }
+
+    .chat-textarea:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .placeholder {
+        position: absolute;
+        top: 0;
+        left: 0;
+        padding: 12px 20px;
+        font-size: var(--font-size-base);
+        color: var(--text-weak);
+        pointer-events: none;
+    }
+
+    .placeholder-example {
+        color: var(--text-weaker);
+    }
+
+    .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .selector-button {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-base);
+        font-size: var(--font-size-base);
+        cursor: pointer;
+        transition: background-color 0.15s;
+        text-transform: capitalize;
+    }
+
+    .selector-button:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .selector-value {
+        font-weight: var(--font-weight-medium);
+    }
+
+    .model-selector {
+        display: flex;
+        align-items: center;
+    }
+
+    .model-name {
+        font-weight: var(--font-weight-medium);
+    }
+
+    .provider-name {
+        margin-left: 4px;
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+    }
+
+    .dropdown-icon {
+        width: 16px;
+        height: 16px;
+        margin-left: 2px;
+        opacity: 0.7;
+    }
+
+    .submit-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 40px;
+        background: var(--surface-brand-base);
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-on-brand-base);
+        cursor: pointer;
+        transition: opacity 0.15s, background-color 0.15s;
+    }
+
+    .submit-button:hover:not(.disabled) {
+        background: var(--surface-brand-hover);
+    }
+
+    .submit-button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .submit-button svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Agent dropdown */
+    .dropdown-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+    }
+
+    .agent-dropdown {
+        position: absolute;
+        bottom: 100%;
+        left: 12px;
+        margin-bottom: 4px;
+        background: var(--surface-float-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        min-width: 140px;
+        z-index: 1001;
+        overflow: hidden;
+    }
+
+    .dropdown-item {
+        padding: 8px 12px;
+        font-size: var(--font-size-small);
+        color: var(--text-base);
+        cursor: pointer;
+        transition: background-color 0.1s;
+    }
+
+    .dropdown-item:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .dropdown-item.selected {
+        background: var(--surface-interactive-base);
+        color: var(--text-interactive-base);
+    }
+
+    .dropdown-divider {
+        height: 1px;
+        background: var(--border-base);
+    }
+
+    /* Model dialog */
+    .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .model-dialog {
+        background: var(--surface-float-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-xl);
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-md);
+    }
+
+    .dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-base);
+    }
+
+    .dialog-title {
+        font-size: var(--font-size-large);
+        font-weight: 600;
+        color: var(--text-strong);
+    }
+
+    .dialog-subtitle {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        margin-left: 8px;
+    }
+
+    .dialog-close {
+        background: transparent;
+        border: none;
+        color: var(--text-weak);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dialog-close:hover {
+        background: var(--surface-base-hover);
+        color: var(--text-base);
+    }
+
+    .dialog-search {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-base);
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--input-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-lg);
+        color: var(--text-strong);
+        font-size: var(--font-size-base);
+        outline: none;
+    }
+
+    .search-input:focus {
+        border-color: var(--border-selected);
+    }
+
+    .search-input::placeholder {
+        color: var(--text-weak);
+    }
+
+    .dialog-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+
+    .model-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.1s;
+    }
+
+    .model-item:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .model-item.selected {
+        background: var(--surface-interactive-base);
+    }
+
+    .model-item-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .model-item-name {
+        font-size: var(--font-size-base);
+        color: var(--text-strong);
+    }
+
+    .model-item.selected .model-item-name {
+        color: var(--text-interactive-base);
+    }
+
+    .model-item-provider {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        flex-shrink: 0;
+    }
+
+    .model-badge {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .model-badge.free {
+        background: var(--surface-success-base);
+        color: var(--text-success-base);
+    }
+
+    /* Provider items */
+    .provider-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: background-color 0.1s;
+    }
+
+    .provider-item:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .provider-item.selected {
+        background: var(--surface-interactive-base);
+    }
+
+    .provider-item-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .provider-item-name {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-strong);
+    }
+
+    .provider-item.selected .provider-item-name {
+        color: var(--text-interactive-base);
+    }
+
+    .provider-item-models {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+    }
+
+    .provider-badge {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .provider-badge.recommended {
+        background: var(--surface-interactive-base);
+        color: var(--text-interactive-base);
+    }
+
+    /* Connect provider button */
+    .connect-provider-button {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: transparent;
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-lg);
+        color: var(--text-base);
+        font-size: var(--font-size-small);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .connect-provider-button:hover {
+        background: var(--surface-base-hover);
+        border-color: var(--border-hover);
+    }
+
+    .connect-provider-button svg {
+        opacity: 0.7;
+    }
+
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: var(--text-weak);
+        font-size: var(--font-size-base);
+    }
+
+    .dialog-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        border-top: 1px solid var(--border-base);
+    }
+
+    .toggle-group {
+        display: flex;
+        background: var(--surface-inset-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .toggle-button {
+        padding: 6px 12px;
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        background: transparent;
+        border: none;
+        color: var(--text-weak);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .toggle-button:hover:not(.active) {
+        color: var(--text-base);
+    }
+
+    .toggle-button.active {
+        background: var(--surface-brand-base);
+        color: var(--text-on-brand-base);
+    }
+
+    .toggle-button:first-child {
+        border-right: 1px solid var(--border-base);
+    }
+</style>

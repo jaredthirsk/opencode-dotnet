@@ -1,0 +1,263 @@
+@using AgUi.IDE.BlazorServer.Services
+@inject IdeStateService IdeState
+
+<div class="ide-layout">
+    <!-- Left Sidebar (File Tree) -->
+    <div class="ide-sidebar @(_showFileTree ? "" : "collapsed")" style="width: @(_fileTreeWidth)px;">
+        @if (_showFileTree)
+        {
+            <div class="pane-header">
+                <div class="pane-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-2" />
+                    <span>Explorer</span>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="ToggleFileTree" />
+            </div>
+            <div class="pane-content">
+                @LeftPanel
+            </div>
+        }
+        else
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Folder" Size="Size.Small" OnClick="ToggleFileTree" Class="sidebar-toggle" />
+        }
+    </div>
+
+    <!-- Resize Handle for Left Sidebar -->
+    @if (_showFileTree)
+    {
+        <div class="resize-handle resize-handle-vertical" @onmousedown="StartResizeFileTree"></div>
+    }
+
+    <!-- Main Content Area -->
+    <div class="ide-main-content">
+        <!-- Center + Right Split -->
+        <div class="ide-center-right">
+            <!-- Center Panel (Chat/Editor) -->
+            <div class="ide-center" style="flex: @(_centerFlex);">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <MudIcon Icon="@Icons.Material.Filled.Chat" Size="Size.Small" Class="mr-2" />
+                        <span>Chat</span>
+                    </div>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="New Chat" />
+                        @if (!_showRightPanel)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Difference" Size="Size.Small" OnClick="ToggleRightPanel" aria-label="Show Changes" />
+                        }
+                    </MudStack>
+                </div>
+                <div class="pane-content">
+                    @CenterPanel
+                </div>
+            </div>
+
+            <!-- Resize Handle for Right Panel -->
+            @if (_showRightPanel)
+            {
+                <div class="resize-handle resize-handle-vertical" @onmousedown="StartResizeRightPanel"></div>
+            }
+
+            <!-- Right Panel (Diff/Details) -->
+            @if (_showRightPanel)
+            {
+                <div class="ide-right" style="width: @(_rightPanelWidth)px;">
+                    <div class="pane-header">
+                        <div class="pane-title">
+                            <MudIcon Icon="@Icons.Material.Filled.Difference" Size="Size.Small" Class="mr-2" />
+                            <span>Changes</span>
+                        </div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="ToggleRightPanel" />
+                    </div>
+                    <div class="pane-content">
+                        @RightPanel
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Resize Handle for Bottom Panel -->
+        @if (_showTerminal)
+        {
+            <div class="resize-handle resize-handle-horizontal" @onmousedown="StartResizeTerminal"></div>
+        }
+
+        <!-- Bottom Panel (Terminal) -->
+        @if (_showTerminal)
+        {
+            <div class="ide-bottom" style="height: @(_terminalHeight)px;">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <MudIcon Icon="@Icons.Material.Filled.Terminal" Size="Size.Small" Class="mr-2" />
+                        <span>Terminal</span>
+                    </div>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Clear" Size="Size.Small" aria-label="Clear" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="ToggleTerminal" />
+                    </MudStack>
+                </div>
+                <div class="pane-content terminal-pane">
+                    @BottomPanel
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Toggle buttons for collapsed panels -->
+<div class="panel-toggles">
+    @if (!_showTerminal)
+    {
+        <MudChip T="string" Size="Size.Small" Color="Color.Dark" OnClick="ToggleTerminal" Class="toggle-chip">
+            <MudIcon Icon="@Icons.Material.Filled.Terminal" Size="Size.Small" Class="mr-1" /> Terminal
+        </MudChip>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? LeftPanel { get; set; }
+    [Parameter] public RenderFragment? CenterPanel { get; set; }
+    [Parameter] public RenderFragment? RightPanel { get; set; }
+    [Parameter] public RenderFragment? BottomPanel { get; set; }
+
+    private bool _showFileTree = true;
+    private bool _showRightPanel = true;
+    private bool _showTerminal = true;
+
+    private int _fileTreeWidth = 250;
+    private int _rightPanelWidth = 300;
+    private int _terminalHeight = 200;
+    private double _centerFlex = 1;
+
+    private void ToggleFileTree() => _showFileTree = !_showFileTree;
+    private void ToggleRightPanel() => _showRightPanel = !_showRightPanel;
+    private void ToggleTerminal() => _showTerminal = !_showTerminal;
+
+    // Resize handlers - these would need JS interop for full implementation
+    private void StartResizeFileTree(MouseEventArgs e) { /* TODO: Implement drag resize */ }
+    private void StartResizeRightPanel(MouseEventArgs e) { /* TODO: Implement drag resize */ }
+    private void StartResizeTerminal(MouseEventArgs e) { /* TODO: Implement drag resize */ }
+}
+
+<style>
+    .ide-layout {
+        display: flex;
+        height: 100%;
+        background: var(--background-base);
+    }
+
+    .ide-sidebar {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface-raised-base);
+        border-right: 1px solid var(--border-base);
+        transition: width 0.2s ease;
+    }
+
+    .ide-sidebar.collapsed {
+        width: 40px !important;
+    }
+
+    .sidebar-toggle {
+        margin: 8px auto;
+    }
+
+    .ide-main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .ide-center-right {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+    }
+
+    .ide-center {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        background: var(--surface-raised-base);
+    }
+
+    .ide-right {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface-raised-base);
+        border-left: 1px solid var(--border-base);
+    }
+
+    .ide-bottom {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface-raised-base);
+        border-top: 1px solid var(--border-base);
+    }
+
+    .pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        background: var(--background-base);
+        border-bottom: 1px solid var(--border-base);
+        flex-shrink: 0;
+    }
+
+    .pane-title {
+        display: flex;
+        align-items: center;
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-weak);
+    }
+
+    .pane-content {
+        flex: 1;
+        overflow: auto;
+        padding: 8px;
+    }
+
+    .terminal-pane {
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-small);
+        background: var(--surface-inset-strong);
+        padding: 12px;
+    }
+
+    .resize-handle {
+        background: transparent;
+        flex-shrink: 0;
+    }
+
+    .resize-handle:hover {
+        background: var(--border-interactive-base);
+    }
+
+    .resize-handle-vertical {
+        width: 4px;
+        cursor: col-resize;
+    }
+
+    .resize-handle-horizontal {
+        height: 4px;
+        cursor: row-resize;
+    }
+
+    .panel-toggles {
+        position: fixed;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 100;
+    }
+
+    .toggle-chip {
+        cursor: pointer;
+    }
+</style>

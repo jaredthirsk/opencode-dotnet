@@ -1,0 +1,361 @@
+@namespace AgUi.IDE.BlazorServer.Components.Shared.Setup
+@using AgUi.IDE.BlazorServer.Services
+@inject OpenCodeLauncher Launcher
+@inject NavigationManager Navigation
+
+<div class="connection-setup">
+    <div class="setup-card">
+        <div class="setup-header">
+            <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h1 class="setup-title">OpenCode IDE</h1>
+        </div>
+
+        <div class="setup-content">
+            @if (_isChecking)
+            {
+                <div class="status-section">
+                    <div class="spinner"></div>
+                    <p class="status-text">Checking OpenCode server...</p>
+                </div>
+            }
+            else if (_isConnected)
+            {
+                <div class="status-section success">
+                    <svg class="status-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p class="status-text">Connected to OpenCode server</p>
+                    <p class="status-url">@Launcher.BaseUrl</p>
+                </div>
+                <button class="primary-button" @onclick="ContinueToIde">
+                    Continue to IDE
+                    <svg class="button-icon" viewBox="0 0 20 20" fill="none">
+                        <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            }
+            else if (_isStarting)
+            {
+                <div class="status-section">
+                    <div class="spinner"></div>
+                    <p class="status-text">Starting OpenCode server...</p>
+                </div>
+            }
+            else
+            {
+                <div class="status-section error">
+                    <svg class="status-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="12" cy="16" r="1" fill="currentColor"/>
+                    </svg>
+                    <p class="status-text">OpenCode server not running</p>
+                    <p class="status-url">Expected at @Launcher.BaseUrl</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">
+                        @_errorMessage
+                    </div>
+                }
+
+                <div class="button-group">
+                    <button class="primary-button" @onclick="StartOpenCode">
+                        <svg class="button-icon" viewBox="0 0 20 20" fill="none">
+                            <polygon points="5,3 19,10 5,17" fill="currentColor"/>
+                        </svg>
+                        Start OpenCode Server
+                    </button>
+                    <button class="secondary-button" @onclick="CheckConnection">
+                        <svg class="button-icon" viewBox="0 0 20 20" fill="none">
+                            <path d="M4 4V10H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20 10C20 5.58 16.42 2 12 2C8.73 2 5.94 4 4.64 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M16 16V10H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M4 10C4 14.42 7.58 18 12 18C15.27 18 18.06 16 19.36 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Retry Connection
+                    </button>
+                </div>
+
+                <div class="help-section">
+                    <p class="help-title">Or start manually:</p>
+                    <code class="help-code">opencode serve</code>
+                    <p class="help-text">
+                        Make sure you have OpenCode installed. Install via:
+                        <code class="help-code-inline">npm install -g @@anthropic/opencode</code>
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isChecking = true;
+    private bool _isConnected;
+    private bool _isStarting;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckConnection();
+    }
+
+    private async Task CheckConnection()
+    {
+        _isChecking = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        _isConnected = await Launcher.IsRunningAsync();
+        _isChecking = false;
+        StateHasChanged();
+
+        // Auto-continue if already connected
+        if (_isConnected)
+        {
+            await Task.Delay(500); // Brief pause to show success
+            ContinueToIde();
+        }
+    }
+
+    private async Task StartOpenCode()
+    {
+        _isStarting = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        var result = await Launcher.StartAsync();
+
+        _isStarting = false;
+        _isConnected = result.Success;
+
+        if (!result.Success)
+        {
+            _errorMessage = result.Message;
+        }
+
+        StateHasChanged();
+
+        if (_isConnected)
+        {
+            await Task.Delay(500);
+            ContinueToIde();
+        }
+    }
+
+    private void ContinueToIde()
+    {
+        Navigation.NavigateTo("/ide");
+    }
+}
+
+<style>
+    .connection-setup {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: var(--background-base);
+        padding: 24px;
+    }
+
+    .setup-card {
+        background: var(--surface-raised-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-xl);
+        padding: 48px;
+        max-width: 480px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .setup-header {
+        margin-bottom: 32px;
+    }
+
+    .logo {
+        width: 64px;
+        height: 64px;
+        color: var(--icon-brand-base);
+        margin-bottom: 16px;
+    }
+
+    .setup-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin: 0;
+    }
+
+    .setup-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .status-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 24px;
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-lg);
+    }
+
+    .status-section.success {
+        background: var(--surface-success-base);
+    }
+
+    .status-section.error {
+        background: var(--surface-critical-base);
+    }
+
+    .status-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .status-section.success .status-icon {
+        color: var(--icon-success-base);
+    }
+
+    .status-section.error .status-icon {
+        color: var(--icon-critical-base);
+    }
+
+    .status-text {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+        margin: 0;
+    }
+
+    .status-url {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        font-family: var(--font-family-mono);
+        margin: 0;
+    }
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border-base);
+        border-top-color: var(--border-interactive-base);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .primary-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: var(--surface-brand-base);
+        color: var(--text-on-brand-base);
+        border: none;
+        border-radius: var(--radius-lg);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+
+    .primary-button:hover {
+        background: var(--surface-brand-hover);
+    }
+
+    .secondary-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: transparent;
+        color: var(--text-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-lg);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .secondary-button:hover {
+        background: var(--surface-base-hover);
+        border-color: var(--border-hover);
+    }
+
+    .button-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .error-message {
+        padding: 12px 16px;
+        background: var(--surface-critical-base);
+        border: 1px solid var(--border-critical-base);
+        border-radius: var(--radius-md);
+        color: var(--text-critical-base);
+        font-size: var(--font-size-small);
+        text-align: left;
+    }
+
+    .help-section {
+        padding-top: 16px;
+        border-top: 1px solid var(--border-base);
+        text-align: left;
+    }
+
+    .help-title {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-weak);
+        margin: 0 0 8px 0;
+    }
+
+    .help-code {
+        display: block;
+        padding: 12px 16px;
+        background: var(--surface-inset-strong);
+        border-radius: var(--radius-md);
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-small);
+        color: var(--text-base);
+        margin-bottom: 12px;
+    }
+
+    .help-text {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .help-code-inline {
+        padding: 2px 6px;
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-family-mono);
+        font-size: 0.9em;
+    }
+</style>

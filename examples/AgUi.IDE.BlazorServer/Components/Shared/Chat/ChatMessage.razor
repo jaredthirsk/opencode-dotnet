@@ -1,0 +1,721 @@
+@using AgUi.IDE.BlazorServer.Services
+@using Markdig
+@inject IJSRuntime JSRuntime
+
+<div class="chat-message @(Message.IsUser ? "user-message" : "assistant-message") message-enter" style="--stagger-index: @StaggerIndex">
+    <div class="message-avatar">
+        @if (Message.IsUser)
+        {
+            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+        }
+        else
+        {
+            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+        }
+    </div>
+    <div class="message-content">
+        <div class="message-header">
+            <span class="message-sender">@(Message.IsUser ? "You" : "Assistant")</span>
+            <span class="message-time">@Message.Timestamp.ToLocalTime().ToString("HH:mm")</span>
+        </div>
+        <div class="message-body">
+            @if (Message.IsStreaming)
+            {
+                <span>@Message.Content</span>
+                <span class="streaming-cursor">|</span>
+            }
+            else if (Message.Parts.Count > 0)
+            {
+                @foreach (var part in Message.Parts)
+                {
+                    @if (part.Type == ChatMessagePartType.Text)
+                    {
+                        <div class="message-text markdown-content">@((MarkupString)RenderMarkdown(part.Content))</div>
+                    }
+                    else if (part.Type == ChatMessagePartType.CodeBlock)
+                    {
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-language">@(string.IsNullOrEmpty(part.Language) ? "code" : part.Language)</span>
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                               Size="Size.Small"
+                                               OnClick="() => CopyCode(part.Content)"
+                                               aria-label="Copy code" />
+                            </div>
+                            <pre class="@GetLanguageClass(part.Language)"><code class="@GetLanguageClass(part.Language)">@part.Content</code></pre>
+                        </div>
+                    }
+                    else if (part.Type == ChatMessagePartType.Thinking)
+                    {
+                        <div class="thinking-block @(part.IsCollapsed ? "collapsed" : "")">
+                            <div class="thinking-header" @onclick="() => ToggleCollapse(part)">
+                                <MudIcon Icon="@Icons.Material.Filled.Psychology" Size="Size.Small" Class="thinking-icon" />
+                                <span class="thinking-label">Thinking</span>
+                                <MudIcon Icon="@(part.IsCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                         Size="Size.Small" Class="expand-icon" />
+                            </div>
+                            @if (!part.IsCollapsed)
+                            {
+                                <div class="thinking-content markdown-content">
+                                    @((MarkupString)RenderMarkdown(part.Content))
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (part.Type == ChatMessagePartType.ToolCall)
+                    {
+                        <div class="tool-call-block @GetToolStateClass(part.ToolState) tool-result-enter">
+                            <div class="tool-call-header" @onclick="() => ToggleCollapse(part)">
+                                <MudIcon Icon="@GetToolIcon(part.ToolName)" Size="Size.Small" Class="tool-icon" />
+                                <span class="tool-name">@part.ToolName</span>
+                                <span class="tool-state">@GetToolStateLabel(part.ToolState)</span>
+                                <MudSpacer />
+                                <MudIcon Icon="@(part.IsCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                         Size="Size.Small" Class="expand-icon" />
+                            </div>
+                            @if (!part.IsCollapsed)
+                            {
+                                <div class="tool-call-content">
+                                    @if (part.ToolInput != null)
+                                    {
+                                        <div class="tool-section">
+                                            <span class="tool-section-label">Input:</span>
+                                            <pre class="tool-data">@FormatToolData(part.ToolInput)</pre>
+                                        </div>
+                                    }
+                                    @if (part.ToolOutput != null)
+                                    {
+                                        <div class="tool-section">
+                                            <span class="tool-section-label">Output:</span>
+                                            <pre class="tool-data">@FormatToolData(part.ToolOutput)</pre>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            @if (part.ToolState == "running")
+                            {
+                                <div class="tool-spinner"></div>
+                            }
+                        </div>
+                    }
+                }
+            }
+            else
+            {
+                <p class="message-text">@Message.Content</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Services.ChatMessage Message { get; set; } = null!;
+    [Parameter] public int StaggerIndex { get; set; }
+
+    private Services.ChatMessage? _previousMessage;
+    private string? _previousContent;
+    private int _previousPartsCount;
+    private bool _previousIsStreaming;
+    private bool _forceRender;
+
+    private static readonly MarkdownPipeline _markdownPipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
+
+    /// <summary>
+    /// Optimize rendering by only re-rendering when message data changes.
+    /// </summary>
+    protected override bool ShouldRender()
+    {
+        // Force render flag (for UI interactions like collapse toggle)
+        if (_forceRender)
+        {
+            _forceRender = false;
+            return true;
+        }
+
+        // Always render if message instance changed
+        if (_previousMessage != Message)
+        {
+            _previousMessage = Message;
+            _previousContent = Message.Content;
+            _previousPartsCount = Message.Parts.Count;
+            _previousIsStreaming = Message.IsStreaming;
+            return true;
+        }
+
+        // Render if content changed (streaming updates)
+        if (_previousContent != Message.Content)
+        {
+            _previousContent = Message.Content;
+            return true;
+        }
+
+        // Render if parts count changed
+        if (_previousPartsCount != Message.Parts.Count)
+        {
+            _previousPartsCount = Message.Parts.Count;
+            return true;
+        }
+
+        // Render if streaming state changed
+        if (_previousIsStreaming != Message.IsStreaming)
+        {
+            _previousIsStreaming = Message.IsStreaming;
+            return true;
+        }
+
+        return false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Trigger Prism.js highlighting for code blocks
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("PrismHighlight.highlightAll");
+        }
+        catch
+        {
+            // Ignore JS errors (e.g., during prerendering)
+        }
+    }
+
+    private static string RenderMarkdown(string? content)
+    {
+        if (string.IsNullOrEmpty(content)) return "";
+        return Markdown.ToHtml(content, _markdownPipeline);
+    }
+
+    private async Task CopyCode(string code)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+        }
+        catch
+        {
+            // Clipboard API may not be available
+        }
+    }
+
+    private static string GetLanguageClass(string? language)
+    {
+        if (string.IsNullOrEmpty(language)) return "language-plaintext";
+
+        return language.ToLowerInvariant() switch
+        {
+            "cs" or "c#" or "csharp" => "language-csharp",
+            "ts" or "typescript" => "language-typescript",
+            "js" or "javascript" => "language-javascript",
+            "jsx" => "language-jsx",
+            "tsx" => "language-tsx",
+            "py" or "python" => "language-python",
+            "json" => "language-json",
+            "yaml" or "yml" => "language-yaml",
+            "bash" or "sh" or "shell" => "language-bash",
+            "sql" => "language-sql",
+            "css" => "language-css",
+            "html" or "xml" or "markup" => "language-markup",
+            "rust" or "rs" => "language-rust",
+            "go" or "golang" => "language-go",
+            "diff" => "language-diff",
+            "md" or "markdown" => "language-markdown",
+            _ => $"language-{language.ToLowerInvariant()}"
+        };
+    }
+
+    private void ToggleCollapse(ChatMessagePart part)
+    {
+        part.IsCollapsed = !part.IsCollapsed;
+        _forceRender = true;
+        StateHasChanged();
+    }
+
+    private string GetToolStateClass(string? state) => state switch
+    {
+        "pending" => "tool-pending",
+        "running" => "tool-running",
+        "completed" => "tool-completed",
+        "error" => "tool-error",
+        _ => ""
+    };
+
+    private string GetToolStateLabel(string? state) => state switch
+    {
+        "pending" => "Pending",
+        "running" => "Running...",
+        "completed" => "✓ Done",
+        "error" => "✗ Error",
+        _ => state ?? ""
+    };
+
+    private string GetToolIcon(string? toolName) => (toolName?.ToLower()) switch
+    {
+        "read" => Icons.Material.Filled.Visibility,
+        "write" => Icons.Material.Filled.Create,
+        "edit" => Icons.Material.Filled.Edit,
+        "bash" => Icons.Material.Filled.Terminal,
+        "glob" => Icons.Material.Filled.Search,
+        "grep" => Icons.Material.Filled.FindInPage,
+        "webfetch" => Icons.Material.Filled.Public,
+        "websearch" => Icons.Material.Filled.TravelExplore,
+        "task" => Icons.Material.Filled.Assignment,
+        "todowrite" => Icons.Material.Filled.Checklist,
+        "askuserquestion" => Icons.Material.Filled.QuestionAnswer,
+        _ => Icons.Material.Filled.Build
+    };
+
+    private string FormatToolData(object? data)
+    {
+        if (data == null) return "";
+        if (data is string s) return s.Length > 500 ? s[..500] + "..." : s;
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            return json.Length > 500 ? json[..500] + "..." : json;
+        }
+        catch
+        {
+            return data.ToString() ?? "";
+        }
+    }
+}
+
+<style>
+    .chat-message {
+        display: flex;
+        gap: 8px;
+        padding: 12px 16px;
+        margin-bottom: 4px;
+        /* Stagger animation using CSS custom property */
+        animation: fadeUp 0.25s ease-out forwards;
+        animation-delay: calc(var(--stagger-index, 0) * 50ms);
+        opacity: 0;
+    }
+
+    .user-message {
+        background: transparent;
+    }
+
+    .assistant-message {
+        background: var(--surface-raised-base);
+        border-radius: var(--radius-lg);
+    }
+
+    .message-avatar {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--background-base);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .message-avatar .mud-icon-root {
+        font-size: 14px;
+    }
+
+    .user-message .message-avatar {
+        background: var(--surface-interactive-base);
+    }
+
+    .assistant-message .message-avatar {
+        background: var(--surface-success-base);
+    }
+
+    .message-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .message-sender {
+        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-base);
+        color: var(--text-base);
+    }
+
+    .message-time {
+        font-size: var(--font-size-small);
+        color: var(--text-weaker);
+    }
+
+    .message-body {
+        color: var(--text-base);
+        font-size: var(--font-size-base);
+        line-height: 1.6;
+    }
+
+    .message-text {
+        margin: 0 0 8px 0;
+    }
+
+    .message-text:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Markdown content styles */
+    .markdown-content p {
+        margin: 0 0 8px 0;
+    }
+
+    .markdown-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+        margin: 8px 0;
+        padding-left: 24px;
+    }
+
+    .markdown-content li {
+        margin: 4px 0;
+    }
+
+    .markdown-content code {
+        background: var(--surface-inset-base);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        font-family: var(--font-family-mono);
+        font-size: 0.9em;
+        color: var(--markdown-code);
+    }
+
+    .markdown-content pre {
+        background: var(--surface-inset-base);
+        padding: 12px;
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        margin: 8px 0;
+    }
+
+    .markdown-content pre code {
+        background: none;
+        padding: 0;
+    }
+
+    .markdown-content strong {
+        font-weight: 600;
+        color: var(--markdown-strong);
+    }
+
+    .markdown-content em {
+        font-style: italic;
+        color: var(--markdown-emph);
+    }
+
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+        margin: 16px 0 8px 0;
+        font-weight: 600;
+        color: var(--markdown-heading);
+    }
+
+    .markdown-content h1 { font-size: 1.4em; }
+    .markdown-content h2 { font-size: 1.2em; }
+    .markdown-content h3 { font-size: 1.1em; }
+
+    .markdown-content blockquote {
+        border-left: 3px solid var(--border-interactive-base);
+        padding-left: 12px;
+        margin: 8px 0;
+        color: var(--markdown-block-quote);
+    }
+
+    .markdown-content a {
+        color: var(--markdown-link);
+        text-decoration: none;
+    }
+
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+
+    .code-block {
+        background: var(--surface-inset-strong);
+        border-radius: var(--radius-lg);
+        margin: 8px 0;
+        overflow: hidden;
+    }
+
+    .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--surface-base);
+        border-bottom: 1px solid var(--border-base);
+    }
+
+    .code-language {
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        font-family: var(--font-family-mono);
+    }
+
+    .code-block pre {
+        margin: 0;
+        padding: 12px;
+        overflow-x: auto;
+    }
+
+    .code-block code {
+        font-family: var(--font-family-mono);
+        font-size: 13px;
+        color: var(--text-base);
+        line-height: 1.5;
+    }
+
+    .streaming-cursor {
+        animation: blink 1s infinite;
+        color: var(--text-on-success-base);
+    }
+
+    /* Thinking dots indicator using pulse animation */
+    .thinking-dots {
+        display: inline-flex;
+        gap: 4px;
+        margin-left: 4px;
+    }
+
+    .thinking-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulseOpacity 1.2s ease-in-out infinite;
+    }
+
+    .thinking-dots span:nth-child(1) { animation-delay: 0s; }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @@keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+
+    @@keyframes pulseOpacity {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+    }
+
+    /* Thinking block styles */
+    .thinking-block {
+        background: var(--surface-thinking-base);
+        border-left: 3px solid var(--border-thinking-base);
+        border-radius: var(--radius-md);
+        margin: 8px 0;
+        overflow: hidden;
+    }
+
+    .thinking-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .thinking-header:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .thinking-icon {
+        color: var(--icon-thinking-base);
+    }
+
+    .thinking-label {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-thinking-base);
+    }
+
+    .expand-icon {
+        color: var(--icon-weak);
+    }
+
+    .thinking-content {
+        padding: 0 12px 12px 12px;
+        font-size: var(--font-size-small);
+        color: var(--text-weak);
+        line-height: 1.5;
+        white-space: pre-wrap;
+    }
+
+    .thinking-content p {
+        margin: 0;
+    }
+
+    /* Tool call block styles - OpenCode style (no left border, collapsible) */
+    .tool-call-block {
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-md);
+        margin: 8px 0;
+        overflow: hidden;
+    }
+
+    .tool-call-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.15s;
+    }
+
+    .tool-call-header:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .tool-icon {
+        color: var(--icon-base);
+    }
+
+    .tool-pending .tool-icon {
+        color: var(--icon-weak);
+    }
+
+    .tool-running .tool-icon {
+        color: var(--icon-interactive-base);
+    }
+
+    .tool-completed .tool-icon {
+        color: var(--icon-success-base);
+    }
+
+    .tool-error .tool-icon {
+        color: var(--icon-critical-base);
+    }
+
+    .tool-name {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+        font-family: var(--font-family-mono);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tool-state {
+        font-size: var(--font-size-xs);
+        color: var(--text-weaker);
+        flex-shrink: 0;
+    }
+
+    .tool-completed .tool-state {
+        color: var(--text-success-base);
+    }
+
+    .tool-error .tool-state {
+        color: var(--text-error-base);
+    }
+
+    .tool-running .tool-state {
+        color: var(--text-interactive-base);
+    }
+
+    .tool-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--border-interactive-base);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .tool-call-content {
+        padding: 0 12px 12px 12px;
+    }
+
+    .tool-section {
+        margin-bottom: 8px;
+    }
+
+    .tool-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .tool-section-label {
+        display: block;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-weaker);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tool-data {
+        background: var(--surface-inset-strong);
+        border-radius: var(--radius-sm);
+        padding: 8px;
+        margin: 0;
+        font-size: var(--font-size-xs);
+        font-family: var(--font-family-mono);
+        color: var(--text-base);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Keyframe animations */
+    @@keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Reduced motion support */
+    @@media (prefers-reduced-motion: reduce) {
+        .chat-message {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+
+        .tool-call-block {
+            animation: none !important;
+        }
+
+        .thinking-dots span {
+            animation: none !important;
+            opacity: 0.7 !important;
+        }
+
+        .streaming-cursor {
+            animation: none !important;
+            opacity: 1 !important;
+        }
+    }
+</style>

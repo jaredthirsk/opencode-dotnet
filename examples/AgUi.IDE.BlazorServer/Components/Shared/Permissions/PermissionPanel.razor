@@ -1,0 +1,253 @@
+@using AgUi.IDE.BlazorServer.Services
+@using LionFire.OpenCode.Serve.Models
+@inject PermissionService PermissionService
+@inject IdeStateService IdeState
+@implements IDisposable
+
+@if (_pendingPermissions.Count > 0)
+{
+    <div class="permission-panel">
+        <div class="permission-header">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Class="mr-2" />
+            <span>Permission Required (@_pendingPermissions.Count)</span>
+        </div>
+
+        @foreach (var permission in _pendingPermissions)
+        {
+            <div class="permission-item @(permission == _pendingPermissions.First() ? "permission-active" : "")">
+                <div class="permission-title">
+                    <MudIcon Icon="@GetPermissionIcon(permission.Type)" Size="Size.Small" Class="mr-2" />
+                    <span>@permission.Title</span>
+                </div>
+
+                @if (permission.Pattern is SinglePermissionPattern single)
+                {
+                    <div class="permission-pattern">
+                        <code>@single.Pattern</code>
+                    </div>
+                }
+                else if (permission.Pattern is MultiplePermissionPattern multi)
+                {
+                    <div class="permission-pattern">
+                        @foreach (var pattern in multi.Patterns.Take(3))
+                        {
+                            <code>@pattern</code>
+                        }
+                        @if (multi.Patterns.Count > 3)
+                        {
+                            <span class="text-text-weaker">+@(multi.Patterns.Count - 3) more</span>
+                        }
+                    </div>
+                }
+
+                <div class="permission-actions">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               OnClick="() => ApproveOnce(permission)"
+                               Disabled="_isResponding"
+                               Class="mr-2">
+                        Allow Once
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               OnClick="() => ApproveAlways(permission)"
+                               Disabled="_isResponding"
+                               Class="mr-2">
+                        Always Allow
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               OnClick="() => Deny(permission)"
+                               Disabled="_isResponding">
+                        Deny
+                    </MudButton>
+                </div>
+
+                <div class="permission-hint">
+                    <MudText Typo="Typo.caption" Class="text-text-weaker">
+                        Press <kbd>Enter</kbd> to allow once, <kbd>A</kbd> to always allow, <kbd>D</kbd> to deny
+                    </MudText>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Permission> _pendingPermissions = new();
+    private bool _isResponding;
+
+    protected override void OnInitialized()
+    {
+        PermissionService.PermissionsChanged += OnPermissionsChanged;
+        RefreshPermissions();
+    }
+
+    private void OnPermissionsChanged()
+    {
+        InvokeAsync(() =>
+        {
+            RefreshPermissions();
+            StateHasChanged();
+        });
+    }
+
+    private void RefreshPermissions()
+    {
+        var sessionId = IdeState.SessionId;
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            _pendingPermissions = PermissionService.GetPendingPermissions(sessionId).ToList();
+        }
+        else
+        {
+            _pendingPermissions = PermissionService.GetAllPendingPermissions().ToList();
+        }
+    }
+
+    private async Task ApproveOnce(Permission permission)
+    {
+        _isResponding = true;
+        StateHasChanged();
+
+        try
+        {
+            await PermissionService.ApproveOnceAsync(permission.SessionId, permission.Id, IdeState.WorkspacePath);
+        }
+        finally
+        {
+            _isResponding = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApproveAlways(Permission permission)
+    {
+        _isResponding = true;
+        StateHasChanged();
+
+        try
+        {
+            await PermissionService.ApproveAlwaysAsync(permission.SessionId, permission.Id, IdeState.WorkspacePath);
+        }
+        finally
+        {
+            _isResponding = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Deny(Permission permission)
+    {
+        _isResponding = true;
+        StateHasChanged();
+
+        try
+        {
+            await PermissionService.DenyAsync(permission.SessionId, permission.Id, IdeState.WorkspacePath);
+        }
+        finally
+        {
+            _isResponding = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetPermissionIcon(string? type) => type switch
+    {
+        "file.read" => Icons.Material.Filled.Visibility,
+        "file.write" => Icons.Material.Filled.Edit,
+        "file.edit" => Icons.Material.Filled.Edit,
+        "command.execute" or "bash" => Icons.Material.Filled.Terminal,
+        "web.fetch" => Icons.Material.Filled.Public,
+        _ => Icons.Material.Filled.Security
+    };
+
+    public void Dispose()
+    {
+        PermissionService.PermissionsChanged -= OnPermissionsChanged;
+    }
+}
+
+<style>
+    .permission-panel {
+        background: var(--surface-raised-base);
+        border: 1px solid var(--border-warning-base);
+        border-radius: var(--radius-md);
+        margin: 8px 0;
+        overflow: hidden;
+    }
+
+    .permission-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--surface-warning-weak);
+        border-bottom: 1px solid var(--border-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--icon-warning-base);
+    }
+
+    .permission-item {
+        padding: 12px;
+        border-bottom: 1px solid var(--border-base);
+    }
+
+    .permission-item:last-child {
+        border-bottom: none;
+    }
+
+    .permission-active {
+        background: var(--surface-warning-weak);
+    }
+
+    .permission-title {
+        display: flex;
+        align-items: center;
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+        margin-bottom: 8px;
+    }
+
+    .permission-pattern {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .permission-pattern code {
+        background: var(--surface-inset-base);
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-small);
+        font-family: var(--font-family-mono);
+        color: var(--text-base);
+    }
+
+    .permission-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .permission-hint {
+        margin-top: 4px;
+    }
+
+    .permission-hint kbd {
+        background: var(--surface-inset-base);
+        padding: 2px 6px;
+        border-radius: var(--radius-xs);
+        font-size: var(--font-size-xs);
+        font-family: var(--font-family-mono);
+        border: 1px solid var(--border-base);
+    }
+
+    .text-text-weaker {
+        color: var(--text-weaker);
+    }
+</style>

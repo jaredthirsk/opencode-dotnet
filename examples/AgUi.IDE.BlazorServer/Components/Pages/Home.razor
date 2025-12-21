@@ -1,0 +1,17 @@
+@page "/welcome"
+
+<PageTitle>OpenCode IDE</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudStack Spacing="4" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h4" Class="text-text-strong">Welcome to OpenCode IDE</MudText>
+        <MudText Class="text-text-base text-center" Style="max-width: 600px;">
+            A full-featured Blazor Server IDE demonstrating OpenCode integration with file tree,
+            chat interface, diff viewer, and terminal components.
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/ide" Size="Size.Large" Class="mt-4">
+            Open IDE
+        </MudButton>
+    </MudStack>
+</MudContainer>

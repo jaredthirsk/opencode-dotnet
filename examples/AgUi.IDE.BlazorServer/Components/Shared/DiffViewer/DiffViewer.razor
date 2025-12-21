@@ -1,0 +1,256 @@
+@using AgUi.IDE.BlazorServer.Services
+@inject DiffService DiffService
+@implements IDisposable
+
+<div class="diff-viewer">
+    @if (DiffService.Diffs.Count == 0)
+    {
+        <div class="diff-empty-state">
+            <MudIcon Icon="@Icons.Material.Filled.Difference" Size="Size.Medium" Color="Color.Secondary" Class="mb-3" />
+            <MudText Typo="Typo.body2" Class="text-text-weaker text-center">
+                File changes from AI suggestions will appear here
+            </MudText>
+        </div>
+    }
+    else
+    {
+        @if (DiffService.Diffs.Count > 1)
+        {
+            <div class="diff-file-tabs">
+                @foreach (var diff in DiffService.Diffs)
+                {
+                    <MudChip T="string"
+                             Color="@(diff == DiffService.SelectedDiff ? Color.Primary : Color.Default)"
+                             Size="Size.Small"
+                             OnClick="() => DiffService.SelectDiff(diff)"
+                             Class="diff-file-tab">
+                        @diff.FileName
+                        <span class="diff-stats">
+                            <span class="additions">+@diff.Additions</span>
+                            <span class="deletions">-@diff.Deletions</span>
+                        </span>
+                    </MudChip>
+                }
+            </div>
+        }
+
+        @if (DiffService.SelectedDiff != null)
+        {
+            <div class="diff-content">
+                <div class="diff-header">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-2" />
+                    <span class="diff-file-path">@DiffService.SelectedDiff.FilePath</span>
+                    <MudSpacer />
+                    <span class="diff-stats-header">
+                        <span class="additions">+@DiffService.SelectedDiff.Additions</span>
+                        <span class="deletions">-@DiffService.SelectedDiff.Deletions</span>
+                    </span>
+                </div>
+                <div class="diff-hunks">
+                    @foreach (var hunk in DiffService.SelectedDiff.Hunks)
+                    {
+                        <div class="diff-hunk">
+                            <div class="hunk-header">
+                                @@ -@hunk.OldStart,@hunk.OldCount +@hunk.NewStart,@hunk.NewCount @@
+                            </div>
+                            @foreach (var line in hunk.Lines)
+                            {
+                                <div class="diff-line @GetLineClass(line.Type)">
+                                    <span class="line-number old">@(line.OldLineNumber?.ToString() ?? "")</span>
+                                    <span class="line-number new">@(line.NewLineNumber?.ToString() ?? "")</span>
+                                    <span class="line-marker">@GetLineMarker(line.Type)</span>
+                                    <span class="line-content">@line.Content</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        DiffService.DiffsChanged += OnDiffsChanged;
+
+        // Load sample diff for demo
+        if (DiffService.Diffs.Count == 0)
+        {
+            var sampleDiff = DiffService.GenerateSampleDiff();
+            DiffService.SetDiffs(new[] { sampleDiff });
+        }
+    }
+
+    private void OnDiffsChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetLineClass(DiffLineType type)
+    {
+        return type switch
+        {
+            DiffLineType.Added => "line-added",
+            DiffLineType.Removed => "line-removed",
+            _ => "line-context"
+        };
+    }
+
+    private string GetLineMarker(DiffLineType type)
+    {
+        return type switch
+        {
+            DiffLineType.Added => "+",
+            DiffLineType.Removed => "-",
+            _ => " "
+        };
+    }
+
+    public void Dispose()
+    {
+        DiffService.DiffsChanged -= OnDiffsChanged;
+    }
+}
+
+<style>
+    .diff-viewer {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-small);
+    }
+
+    .diff-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 24px;
+        color: var(--text-weak);
+    }
+
+    .diff-file-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 8px;
+        border-bottom: 1px solid var(--border-base);
+    }
+
+    .diff-file-tab {
+        cursor: pointer;
+    }
+
+    .diff-content {
+        flex: 1;
+        overflow: auto;
+    }
+
+    .diff-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--background-base);
+        border-bottom: 1px solid var(--border-base);
+        font-size: var(--font-size-small);
+    }
+
+    .diff-file-path {
+        color: var(--text-base);
+    }
+
+    .diff-stats, .diff-stats-header {
+        display: flex;
+        gap: 8px;
+        font-size: var(--font-size-xs);
+    }
+
+    .additions {
+        color: var(--text-diff-add-base);
+    }
+
+    .deletions {
+        color: var(--text-diff-delete-base);
+    }
+
+    .diff-hunks {
+        padding: 0;
+    }
+
+    .diff-hunk {
+        margin-bottom: 16px;
+    }
+
+    .hunk-header {
+        padding: 4px 12px;
+        background: var(--surface-diff-hidden-base);
+        color: var(--text-interactive-base);
+        font-size: var(--font-size-xs);
+    }
+
+    .diff-line {
+        display: flex;
+        line-height: 1.5;
+    }
+
+    .line-number {
+        width: 40px;
+        padding: 0 8px;
+        text-align: right;
+        color: var(--text-weaker);
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    .line-marker {
+        width: 20px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .line-content {
+        flex: 1;
+        padding-right: 12px;
+        white-space: pre;
+    }
+
+    .line-context {
+        background: var(--surface-diff-unchanged-base);
+    }
+
+    .line-added {
+        background: var(--surface-diff-add-base);
+    }
+
+    .line-added .line-marker {
+        color: var(--text-diff-add-base);
+    }
+
+    .line-added .line-content {
+        color: var(--text-diff-add-base);
+    }
+
+    .line-removed {
+        background: var(--surface-diff-delete-base);
+    }
+
+    .line-removed .line-marker {
+        color: var(--text-diff-delete-base);
+    }
+
+    .line-removed .line-content {
+        color: var(--text-diff-delete-base);
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-text-weaker {
+        color: var(--text-weaker);
+    }
+</style>

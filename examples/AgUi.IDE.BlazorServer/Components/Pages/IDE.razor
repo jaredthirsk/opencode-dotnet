@@ -1,0 +1,131 @@
+@page "/ide"
+@using AgUi.IDE.BlazorServer.Services
+@using AgUi.IDE.BlazorServer.Components.Layout
+@using AgUi.IDE.BlazorServer.Components.Shared.FileTree
+@using AgUi.IDE.BlazorServer.Components.Shared.Chat
+@using AgUi.IDE.BlazorServer.Components.Shared.DiffViewer
+@using AgUi.IDE.BlazorServer.Components.Shared.Terminal
+@using AgUi.IDE.BlazorServer.Components.Shared.Debug
+@inject IdeStateService IdeState
+@inject FileTreeService FileTreeService
+@inject OpenCodeIdeService OpenCodeService
+@implements IDisposable
+
+<PageTitle>IDE - OpenCode</PageTitle>
+
+<div class="ide-page">
+    <!-- Toolbar -->
+    <div class="ide-toolbar">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="px-3 py-1">
+            <MudIcon Icon="@Icons.Custom.Brands.GitHub" Size="Size.Small" Class="mr-1" />
+            <MudText Typo="Typo.body2" Class="text-text-weak">Workspace:</MudText>
+            <MudText Typo="Typo.body2" Class="text-text-base">@(IdeState.WorkspacePath ?? "No workspace")</MudText>
+            <MudSpacer />
+            @if (IdeState.ContextFiles.Count > 0)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Class="context-chip">
+                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                    @IdeState.ContextFiles.Count file(s) in context
+                </MudChip>
+            }
+            @if (_selectedFile != null)
+            {
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="selected-file-chip" OnClose="ClearSelection">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />
+                    @_selectedFile.Name
+                </MudChip>
+            }
+            <MudChip T="string"
+                     Color="@(IdeState.IsConnected ? Color.Success : Color.Error)"
+                     Size="Size.Small"
+                     Variant="Variant.Outlined">
+                @(IdeState.IsConnected ? "Connected" : "Disconnected")
+            </MudChip>
+        </MudStack>
+    </div>
+
+    <!-- IDE Layout -->
+    <IdeLayout>
+        <LeftPanel>
+            <FileTree OnFileSelected="OnFileSelected" OnFileDoubleClick="OnFileDoubleClick" />
+        </LeftPanel>
+
+        <CenterPanel>
+            <ChatPanel />
+        </CenterPanel>
+
+        <RightPanel>
+            <DiffViewer />
+            <ProviderDebugPanel />
+        </RightPanel>
+
+        <BottomPanel>
+            <TerminalPanel />
+        </BottomPanel>
+    </IdeLayout>
+</div>
+
+@code {
+    private FileTreeNode? _selectedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IdeState.SetWorkspace("/src/opencode-dotnet");
+        IdeState.OnStateChanged += OnStateChanged;
+
+        // Initialize OpenCode connection
+        await OpenCodeService.InitializeAsync();
+    }
+
+    private void OnStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnFileSelected(FileTreeNode file)
+    {
+        _selectedFile = file;
+        IdeState.SelectFile(file.Path, file.Name);
+    }
+
+    private void OnFileDoubleClick(FileTreeNode file)
+    {
+        // Add file to context on double-click
+        _selectedFile = file;
+        IdeState.SelectFile(file.Path, file.Name);
+        IdeState.AddToContext(file.Path);
+    }
+
+    private void ClearSelection()
+    {
+        _selectedFile = null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        IdeState.OnStateChanged -= OnStateChanged;
+    }
+}
+
+<style>
+    .ide-page {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 48px);
+    }
+
+    .ide-toolbar {
+        background: var(--opencode-bg-raised, #1b1818);
+        border-bottom: 1px solid var(--opencode-border-base, #333);
+        flex-shrink: 0;
+    }
+
+    .selected-file-chip {
+        color: var(--opencode-text-base, #e6e1dc);
+    }
+
+    .context-chip {
+        color: var(--opencode-text-base, #e6e1dc);
+    }
+</style>

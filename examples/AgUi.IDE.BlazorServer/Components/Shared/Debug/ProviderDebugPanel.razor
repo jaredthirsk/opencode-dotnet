@@ -1,0 +1,465 @@
+@namespace AgUi.IDE.BlazorServer.Components.Shared.Debug
+@using LionFire.OpenCode.Serve
+@using LionFire.OpenCode.Serve.Models
+@using System.Text.Json
+@inject IOpenCodeClient OpenCodeClient
+@inject IdeStateService IdeState
+
+<div class="debug-panel">
+    <div class="debug-header" @onclick="ToggleExpanded">
+        <span class="debug-title">Provider Debug Info</span>
+        <span class="debug-toggle">@(_isExpanded ? "▼" : "▶")</span>
+    </div>
+
+    @if (_isExpanded)
+    {
+        <div class="debug-content">
+            <div class="debug-actions">
+                <button class="debug-button" @onclick="RefreshData" disabled="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <span class="spinner-small"></span>
+                    }
+                    Refresh
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="debug-error">@_error</div>
+            }
+
+            <div class="debug-section">
+                <h4>Current Selection</h4>
+                <div class="debug-item">
+                    <span class="debug-label">Provider:</span>
+                    <span class="debug-value">@(IdeState.CurrentProviderId ?? "(none)") / @(IdeState.CurrentProviderName ?? "(none)")</span>
+                </div>
+                <div class="debug-item">
+                    <span class="debug-label">Model:</span>
+                    <span class="debug-value">@(IdeState.CurrentModelId ?? "(none)") / @(IdeState.CurrentModelName ?? "(none)")</span>
+                </div>
+                <div class="debug-item">
+                    <span class="debug-label">Agent:</span>
+                    <span class="debug-value">@(IdeState.CurrentAgentId ?? "(default)")</span>
+                </div>
+            </div>
+
+            @if (_providerAuth != null && _providerAuth.Count > 0)
+            {
+                <div class="debug-section">
+                    <h4>Provider Authentication Options</h4>
+                    <p class="debug-note">Providers listed here require authentication:</p>
+                    @foreach (var kvp in _providerAuth)
+                    {
+                        <div class="debug-item auth-item">
+                            <span class="debug-label">@kvp.Key:</span>
+                            <span class="auth-methods">
+                                @{
+                                    var methods = kvp.Value.EnumerateArray().Select(m =>
+                                        m.TryGetProperty("label", out var label) ? label.GetString() : "unknown"
+                                    ).ToList();
+                                }
+                                @string.Join(", ", methods)
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="debug-section">
+                <h4>Selected Provider Status</h4>
+                @if (!string.IsNullOrEmpty(IdeState.CurrentProviderId))
+                {
+                    var needsAuth = HasAuthMethods(IdeState.CurrentProviderId);
+                    <div class="debug-item">
+                        <span class="debug-label">@IdeState.CurrentProviderId:</span>
+                        <span class="auth-status @(needsAuth ? "needs-auth" : "configured")">
+                            @(needsAuth ? "⚠ Requires Authentication" : "✓ Configured (no auth needed)")
+                        </span>
+                    </div>
+                    @if (needsAuth)
+                    {
+                        <p class="auth-warning">This provider requires authentication. Messages may fail or use a fallback model.</p>
+                    }
+                }
+                else
+                {
+                    <p class="debug-note">No provider selected</p>
+                }
+            </div>
+
+            @if (_configProviders != null)
+            {
+                <div class="debug-section">
+                    <h4>Config Providers (/config/providers)</h4>
+                    <pre class="debug-json">@FormatJson(_configProviders)</pre>
+                </div>
+            }
+
+            @if (_providers != null && _providers.Count > 0)
+            {
+                <div class="debug-section">
+                    <h4>Available Providers (@_providers.Count)</h4>
+                    @foreach (var provider in _providers)
+                    {
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <span class="provider-name">@provider.Name</span>
+                                <span class="provider-id">(@provider.Id)</span>
+                            </div>
+                            <div class="provider-models">
+                                @if (provider.Models != null)
+                                {
+                                    <span class="model-count">@provider.Models.Count models</span>
+                                    <div class="model-list">
+                                        @foreach (var model in provider.Models.Take(5))
+                                        {
+                                            <span class="model-chip @(model.Cost?.Input == 0 && model.Cost?.Output == 0 ? "free" : "")">
+                                                @model.Name
+                                                @if (model.Cost?.Input == 0 && model.Cost?.Output == 0)
+                                                {
+                                                    <span class="free-badge">FREE</span>
+                                                }
+                                            </span>
+                                        }
+                                        @if (provider.Models.Count > 5)
+                                        {
+                                            <span class="model-chip more">+@(provider.Models.Count - 5) more</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isExpanded = false;
+    private bool _isLoading = false;
+    private string? _error;
+
+    private List<Provider>? _providers;
+    private Dictionary<string, JsonElement>? _providerAuth;
+    private Dictionary<string, object>? _configProviders;
+
+    private void ToggleExpanded()
+    {
+        _isExpanded = !_isExpanded;
+        if (_isExpanded && _providers == null)
+        {
+            _ = RefreshData();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        _isLoading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            var providersTask = OpenCodeClient.ListProvidersAsync();
+            var configTask = OpenCodeClient.GetConfigProvidersAsync();
+
+            // Fetch provider auth separately since it has a different structure
+            var authTask = FetchProviderAuthAsync();
+
+            await Task.WhenAll(providersTask, configTask, authTask);
+
+            _providers = await providersTask;
+            _configProviders = await configTask;
+            _providerAuth = await authTask;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<Dictionary<string, JsonElement>?> FetchProviderAuthAsync()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetStringAsync("http://127.0.0.1:9876/provider/auth");
+            return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(response);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private bool HasAuthMethods(string providerId)
+    {
+        if (_providerAuth == null) return false;
+        return _providerAuth.ContainsKey(providerId);
+    }
+
+    private string FormatJson(object obj)
+    {
+        try
+        {
+            return JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return obj?.ToString() ?? "";
+        }
+    }
+}
+
+<style>
+    .debug-panel {
+        background: var(--surface-inset-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-md);
+        margin: 8px;
+        font-size: var(--font-size-small);
+    }
+
+    .debug-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .debug-header:hover {
+        background: var(--surface-base-hover);
+    }
+
+    .debug-title {
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+    }
+
+    .debug-toggle {
+        color: var(--text-weak);
+        font-size: 10px;
+    }
+
+    .debug-content {
+        padding: 12px;
+        border-top: 1px solid var(--border-base);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .debug-actions {
+        margin-bottom: 12px;
+    }
+
+    .debug-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--surface-interactive-base);
+        color: var(--text-interactive-base);
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-small);
+        cursor: pointer;
+    }
+
+    .debug-button:hover:not(:disabled) {
+        background: var(--surface-interactive-hover);
+    }
+
+    .debug-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .spinner-small {
+        width: 12px;
+        height: 12px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .debug-error {
+        padding: 8px 12px;
+        background: var(--surface-critical-base);
+        border: 1px solid var(--border-critical-base);
+        border-radius: var(--radius-sm);
+        color: var(--text-critical-base);
+        margin-bottom: 12px;
+    }
+
+    .debug-section {
+        margin-bottom: 16px;
+    }
+
+    .debug-section h4 {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-weak);
+        margin: 0 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .debug-item {
+        display: flex;
+        gap: 8px;
+        padding: 4px 0;
+    }
+
+    .debug-label {
+        color: var(--text-weak);
+        min-width: 80px;
+    }
+
+    .debug-value {
+        color: var(--text-base);
+        font-family: var(--font-family-mono);
+    }
+
+    .auth-item {
+        align-items: center;
+    }
+
+    .auth-status {
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+    }
+
+    .auth-status.authenticated {
+        background: var(--surface-success-base);
+        color: var(--text-success-base);
+    }
+
+    .auth-status.not-authenticated {
+        background: var(--surface-warning-base);
+        color: var(--text-warning-base);
+    }
+
+    .auth-status.needs-auth {
+        background: var(--surface-warning-base);
+        color: var(--text-warning-base);
+    }
+
+    .auth-status.configured {
+        background: var(--surface-success-base);
+        color: var(--text-success-base);
+    }
+
+    .debug-note {
+        color: var(--text-weak);
+        font-size: var(--font-size-xs);
+        margin: 4px 0;
+    }
+
+    .auth-warning {
+        color: var(--text-warning-base);
+        font-size: var(--font-size-xs);
+        margin: 8px 0 0 0;
+        padding: 8px;
+        background: var(--surface-warning-base);
+        border-radius: var(--radius-sm);
+    }
+
+    .auth-methods {
+        color: var(--text-base);
+        font-size: var(--font-size-xs);
+    }
+
+    .debug-json {
+        background: var(--surface-inset-strong);
+        padding: 12px;
+        border-radius: var(--radius-sm);
+        overflow-x: auto;
+        font-family: var(--font-family-mono);
+        font-size: 11px;
+        color: var(--text-base);
+        margin: 0;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .provider-card {
+        background: var(--surface-base);
+        border: 1px solid var(--border-base);
+        border-radius: var(--radius-sm);
+        padding: 8px 12px;
+        margin-bottom: 8px;
+    }
+
+    .provider-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .provider-name {
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+    }
+
+    .provider-id {
+        color: var(--text-weak);
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-xs);
+    }
+
+    .model-count {
+        color: var(--text-weak);
+        font-size: var(--font-size-xs);
+    }
+
+    .model-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .model-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+        color: var(--text-weak);
+    }
+
+    .model-chip.free {
+        background: var(--surface-success-base);
+        color: var(--text-success-base);
+    }
+
+    .model-chip.more {
+        font-style: italic;
+    }
+
+    .free-badge {
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+</style>

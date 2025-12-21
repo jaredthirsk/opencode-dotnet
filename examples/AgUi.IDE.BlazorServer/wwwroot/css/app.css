@@ -1,0 +1,90 @@
+/* OpenCode IDE Application Styles */
+
+/* Override body defaults */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Dark mode defaults */
+.dark {
+    color-scheme: dark;
+}
+
+/* Height utilities */
+.h-screen {
+    height: 100vh;
+}
+
+.h-full {
+    height: 100%;
+}
+
+/* Flex utilities */
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+/* IDE-specific panel styling */
+.ide-resizer {
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+}
+
+.ide-resizer:hover {
+    background: var(--mud-palette-primary);
+}
+
+.ide-resizer-horizontal {
+    height: 4px;
+    cursor: row-resize;
+}
+
+/* Tree view customizations */
+.mud-treeview-item-content {
+    padding: 4px 8px !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Terminal font */
+.terminal-font {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}

@@ -1,0 +1,142 @@
+@using AgUi.IDE.BlazorServer.Services
+@inject FileTreeService FileTreeService
+@inject IdeStateService IdeState
+
+<div class="file-tree-container">
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="ma-2" />
+    }
+    else if (_rootNodes.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="text-text-weaker pa-2">No files to display</MudText>
+    }
+    else
+    {
+        <div class="file-tree">
+            @foreach (var node in _rootNodes)
+            {
+                <FileTreeNodeView Node="node"
+                                  OnSelect="OnNodeSelected"
+                                  OnDoubleClick="OnNodeDoubleClick"
+                                  OnExpand="OnNodeExpand" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<FileTreeNode> OnFileSelected { get; set; }
+    [Parameter] public EventCallback<FileTreeNode> OnFileDoubleClick { get; set; }
+    [Parameter] public string? RootPath { get; set; }
+
+    private List<FileTreeNode> _rootNodes = new();
+    private FileTreeNode? _selectedNode;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRootNodes();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (RootPath != null && RootPath != IdeState.WorkspacePath)
+        {
+            await LoadRootNodes();
+        }
+    }
+
+    private async Task LoadRootNodes()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            _rootNodes = await FileTreeService.GetRootNodesAsync(RootPath);
+        }
+        catch
+        {
+            _rootNodes = new List<FileTreeNode>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnNodeSelected(FileTreeNode node)
+    {
+        // Deselect previous
+        if (_selectedNode != null)
+        {
+            _selectedNode.IsSelected = false;
+        }
+
+        _selectedNode = node;
+        node.IsSelected = true;
+
+        if (!node.IsDirectory)
+        {
+            FileTreeService.SelectFile(node);
+            await OnFileSelected.InvokeAsync(node);
+        }
+    }
+
+    private async Task OnNodeDoubleClick(FileTreeNode node)
+    {
+        if (!node.IsDirectory)
+        {
+            await OnFileDoubleClick.InvokeAsync(node);
+        }
+        else
+        {
+            // Toggle expand on double-click for directories
+            await OnNodeExpand(node);
+        }
+    }
+
+    private async Task OnNodeExpand(FileTreeNode node)
+    {
+        if (!node.IsDirectory) return;
+
+        node.IsExpanded = !node.IsExpanded;
+
+        if (node.IsExpanded && node.Children.Count == 0)
+        {
+            // Lazy load children
+            node.IsLoading = true;
+            StateHasChanged();
+
+            try
+            {
+                node.Children = await FileTreeService.GetChildrenAsync(node.Path);
+                FileTreeService.ExpandDirectory(node);
+            }
+            finally
+            {
+                node.IsLoading = false;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadRootNodes();
+    }
+}
+
+<style>
+    .file-tree-container {
+        height: 100%;
+        overflow: auto;
+    }
+
+    .file-tree {
+        color: var(--opencode-text-base, #e6e1dc);
+        padding: 4px 0;
+    }
+</style>

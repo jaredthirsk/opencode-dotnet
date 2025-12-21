@@ -1,0 +1,119 @@
+@using AgUi.IDE.BlazorServer.Services
+@inject TerminalService TerminalService
+@implements IDisposable
+
+<div class="terminal-panel" @ref="_terminalContainer">
+    <div class="terminal-output">
+        @foreach (var line in TerminalService.Lines)
+        {
+            <div class="terminal-line @GetLineClass(line.Type)">
+                @if (line.Type == TerminalOutputType.Prompt)
+                {
+                    <span class="terminal-prompt">@line.Content </span>
+                    @if (line == TerminalService.Lines.LastOrDefault())
+                    {
+                        <span class="terminal-cursor">|</span>
+                    }
+                }
+                else
+                {
+                    <span>@line.Content</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference _terminalContainer;
+
+    protected override void OnInitialized()
+    {
+        TerminalService.OutputChanged += OnOutputChanged;
+
+        // Initialize with sample output for demo
+        if (TerminalService.Lines.Count == 0)
+        {
+            TerminalService.InitializeWithSampleOutput();
+        }
+    }
+
+    private void OnOutputChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await ScrollToBottomAsync();
+        });
+    }
+
+    private async Task ScrollToBottomAsync()
+    {
+        // Would need JS interop for actual scroll
+        await Task.CompletedTask;
+    }
+
+    private string GetLineClass(TerminalOutputType type)
+    {
+        return type switch
+        {
+            TerminalOutputType.Stderr => "terminal-error",
+            TerminalOutputType.System => "terminal-system",
+            TerminalOutputType.Prompt => "terminal-prompt-line",
+            _ => ""
+        };
+    }
+
+    public void Dispose()
+    {
+        TerminalService.OutputChanged -= OnOutputChanged;
+    }
+}
+
+<style>
+    .terminal-panel {
+        height: 100%;
+        overflow: auto;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        background: #0d0d0d;
+        padding: 8px 12px;
+    }
+
+    .terminal-output {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .terminal-line {
+        color: var(--opencode-text-base, #e6e1dc);
+    }
+
+    .terminal-error {
+        color: #f87171;
+    }
+
+    .terminal-system {
+        color: #6ba3ff;
+    }
+
+    .terminal-prompt-line {
+        color: var(--opencode-text-base, #e6e1dc);
+    }
+
+    .terminal-prompt {
+        color: #4ade80;
+        font-weight: 500;
+    }
+
+    .terminal-cursor {
+        animation: blink 1s infinite;
+        color: var(--opencode-text-base, #e6e1dc);
+    }
+
+    @@keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+</style>

@@ -1,0 +1,208 @@
+@using AgUi.IDE.BlazorServer.Services
+@inject ChatService ChatService
+@implements IDisposable
+
+@if (_activeTools.Count > 0)
+{
+    <div class="tool-execution-panel">
+        @foreach (var tool in _activeTools)
+        {
+            <div class="tool-item @GetToolStateClass(tool)">
+                <div class="tool-header">
+                    <MudIcon Icon="@GetToolIcon(tool.ToolName)" Size="Size.Small" Class="mr-2" />
+                    <span class="tool-name">@tool.ToolName</span>
+                    <MudSpacer />
+                    <MudChip T="string" Size="Size.Small" Color="@GetStateColor(tool)" Variant="Variant.Outlined">
+                        @if (tool.HasPendingPermission)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                            <span>Awaiting Permission</span>
+                        }
+                        else
+                        {
+                            @GetStateText(tool)
+                        }
+                    </MudChip>
+                </div>
+
+                @if (tool.Input != null)
+                {
+                    <div class="tool-input">
+                        <MudText Typo="Typo.caption" Class="text-text-weaker mb-1">Input:</MudText>
+                        <code>@FormatInput(tool.Input)</code>
+                    </div>
+                }
+
+                @if (tool.Output != null && tool.State == "completed")
+                {
+                    <div class="tool-output">
+                        <MudText Typo="Typo.caption" Class="text-text-weaker mb-1">Output:</MudText>
+                        <code>@FormatOutput(tool.Output)</code>
+                    </div>
+                }
+
+                @if (tool.State == "running" && !tool.HasPendingPermission)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Size="Size.Small" Class="mt-2" />
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ToolExecution> _activeTools = new();
+
+    protected override void OnInitialized()
+    {
+        ChatService.ToolsChanged += OnToolsChanged;
+        RefreshTools();
+    }
+
+    private void OnToolsChanged()
+    {
+        InvokeAsync(() =>
+        {
+            RefreshTools();
+            StateHasChanged();
+        });
+    }
+
+    private void RefreshTools()
+    {
+        _activeTools = ChatService.ToolExecutions.Values
+            .Where(t => t.State != "completed" || t.EndTime > DateTime.UtcNow.AddSeconds(-5))
+            .OrderByDescending(t => t.StartTime)
+            .Take(5)
+            .ToList();
+    }
+
+    private string GetToolStateClass(ToolExecution tool) => tool.State switch
+    {
+        "pending" => "tool-pending",
+        "running" => tool.HasPendingPermission ? "tool-permission" : "tool-running",
+        "completed" => "tool-completed",
+        "error" => "tool-error",
+        _ => ""
+    };
+
+    private Color GetStateColor(ToolExecution tool)
+    {
+        if (tool.HasPendingPermission) return Color.Warning;
+        return tool.State switch
+        {
+            "pending" => Color.Default,
+            "running" => Color.Info,
+            "completed" => Color.Success,
+            "error" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStateText(ToolExecution tool) => tool.State switch
+    {
+        "pending" => "Pending",
+        "running" => "Running",
+        "completed" => "Completed",
+        "error" => "Error",
+        _ => tool.State
+    };
+
+    private string GetToolIcon(string toolName) => toolName.ToLower() switch
+    {
+        "read" => Icons.Material.Filled.Visibility,
+        "write" => Icons.Material.Filled.Create,
+        "edit" => Icons.Material.Filled.Edit,
+        "bash" => Icons.Material.Filled.Terminal,
+        "glob" => Icons.Material.Filled.Search,
+        "grep" => Icons.Material.Filled.FindInPage,
+        "webfetch" => Icons.Material.Filled.Public,
+        "task" => Icons.Material.Filled.Assignment,
+        "todowrite" => Icons.Material.Filled.Checklist,
+        _ => Icons.Material.Filled.Build
+    };
+
+    private string FormatInput(object input)
+    {
+        if (input is string s) return s.Length > 100 ? s[..100] + "..." : s;
+        var json = System.Text.Json.JsonSerializer.Serialize(input);
+        return json.Length > 100 ? json[..100] + "..." : json;
+    }
+
+    private string FormatOutput(object output)
+    {
+        if (output is string s) return s.Length > 200 ? s[..200] + "..." : s;
+        var json = System.Text.Json.JsonSerializer.Serialize(output);
+        return json.Length > 200 ? json[..200] + "..." : json;
+    }
+
+    public void Dispose()
+    {
+        ChatService.ToolsChanged -= OnToolsChanged;
+    }
+}
+
+<style>
+    .tool-execution-panel {
+        padding: 8px 0;
+    }
+
+    .tool-item {
+        background: var(--surface-inset-base);
+        border-radius: var(--radius-md);
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        border-left: 3px solid var(--border-base);
+    }
+
+    .tool-pending {
+        border-left-color: var(--border-weak-base);
+    }
+
+    .tool-running {
+        border-left-color: var(--border-interactive-base);
+    }
+
+    .tool-permission {
+        border-left-color: var(--border-warning-base);
+        background: var(--surface-warning-weak);
+    }
+
+    .tool-completed {
+        border-left-color: var(--border-success-base);
+    }
+
+    .tool-error {
+        border-left-color: var(--border-error-base);
+    }
+
+    .tool-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .tool-name {
+        font-weight: var(--font-weight-medium);
+        color: var(--text-base);
+    }
+
+    .tool-input, .tool-output {
+        margin-top: 8px;
+        padding: 8px;
+        background: var(--surface-inset-strong);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+
+    .tool-input code, .tool-output code {
+        font-size: var(--font-size-xs);
+        font-family: var(--font-family-mono);
+        color: var(--text-base);
+        word-break: break-all;
+        white-space: pre-wrap;
+    }
+
+    .text-text-weaker {
+        color: var(--text-weaker);
+    }
+</style>

@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="OpenCodeTheme.Theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Dark" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+        <MudText Typo="Typo.h6" Class="ml-3">OpenCode IDE</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Inherit" />
+    </MudAppBar>
+
+    <MudMainContent Class="h-screen bg-background-base">
+        @Body
+    </MudMainContent>
+</MudLayout>
