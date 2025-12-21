@@ -1,6 +1,36 @@
 # Basic Usage Example
 
+> **Status: Working** - This example runs successfully against a live `opencode serve` instance.
+
 This example demonstrates the core functionality of the LionFire.OpenCode.Serve SDK.
+
+## Sample Output
+
+```
+LionFire.OpenCode.Serve SDK - Basic Usage Example
+==================================================
+
+1. Checking server health...
+   Server is responding
+
+2. Listing available providers and models...
+   Found 72 providers
+   Providers with FREE models: zai-coding-plan, ollama-cloud, nvidia, ...
+   Run with --list-models --free to see all free models
+
+3. Creating session...
+   Created session: ses_4c14e80e6ffeIutDoEPagoxBUu
+   Session directory: /src/opencode-dotnet
+   Using default model (specify -p and -m to use a specific model)
+   Session cleaned up.
+
+4. Listing sessions...
+   Found 4 sessions
+   - ses_4c151ebd5ffeMHidga5he0Speo (created: 12/21/2025 02:12)
+   ... and more
+
+All examples completed successfully!
+```
 
 ## Prerequisites
 
