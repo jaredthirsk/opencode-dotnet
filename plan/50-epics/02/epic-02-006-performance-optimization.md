@@ -13,15 +13,15 @@ Establish performance benchmarks, profile code, and optimize critical paths.
 
 ## Tasks
 
-- [ ] Create BenchmarkDotNet project
-- [ ] Benchmark message conversion (<1ms target)
-- [ ] Benchmark thread serialization (<10ms for 100 messages)
-- [ ] Benchmark streaming latency (<5ms overhead)
-- [ ] Profile allocations and optimize
-- [ ] Use spans/memory where appropriate
-- [ ] Object pooling for frequently allocated objects
-- [ ] Document performance characteristics
-- [ ] Create performance troubleshooting guide
+- [x] Create BenchmarkDotNet project
+- [x] Benchmark message conversion (<1ms target)
+- [x] Benchmark thread serialization (<10ms for 100 messages)
+- [x] Benchmark streaming latency (<5ms overhead)
+- [x] Profile allocations and optimize
+- [x] Use spans/memory where appropriate
+- [x] Object pooling for frequently allocated objects
+- [x] Document performance characteristics
+- [x] Create performance troubleshooting guide
 
 ## Acceptance Criteria
 

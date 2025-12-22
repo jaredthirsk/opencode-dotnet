@@ -13,12 +13,12 @@ Implement System.Text.Json source generators for all DTOs to enable Native AOT c
 
 ## Tasks
 
-- [ ] Add [JsonSerializable] attributes to all DTOs
-- [ ] Create JsonSerializerContext class
-- [ ] Update serialization calls to use generated context
-- [ ] Test AOT compilation with sample app
+- [x] Add [JsonSerializable] attributes to all DTOs
+- [x] Create JsonSerializerContext class
+- [x] Update serialization calls to use generated context
+- [x] Test AOT compilation with sample app
 - [ ] Benchmark startup time improvement
-- [ ] Update documentation for AOT scenarios
+- [x] Update documentation for AOT scenarios
 
 ## Acceptance Criteria
 

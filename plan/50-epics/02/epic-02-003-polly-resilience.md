@@ -13,14 +13,14 @@ Integrate Polly for advanced resilience patterns: circuit breaker, advanced retr
 
 ## Tasks
 
-- [ ] Add Polly dependency (optional package or built-in)
-- [ ] Implement circuit breaker policy for repeated failures
-- [ ] Enhanced retry policy with jitter
-- [ ] Per-operation timeout policies
-- [ ] Add OpencodeClientOptions resilience settings
-- [ ] Test circuit breaker behavior (open, half-open, closed)
-- [ ] Document resilience configuration
-- [ ] Add example demonstrating resilience patterns
+- [x] Add Polly dependency (optional package or built-in)
+- [x] Implement circuit breaker policy for repeated failures
+- [x] Enhanced retry policy with jitter
+- [x] Per-operation timeout policies
+- [x] Add OpencodeClientOptions resilience settings
+- [x] Test circuit breaker behavior (open, half-open, closed)
+- [x] Document resilience configuration
+- [x] Add example demonstrating resilience patterns
 
 ## Acceptance Criteria
 

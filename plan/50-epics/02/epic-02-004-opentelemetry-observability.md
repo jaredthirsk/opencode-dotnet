@@ -13,14 +13,14 @@ Integrate OpenTelemetry for distributed tracing, metrics, and observability in e
 
 ## Tasks
 
-- [ ] Add OpenTelemetry.Api dependency
-- [ ] Create ActivitySource for tracing
-- [ ] Add traces for all HTTP operations
-- [ ] Add metrics (request duration, error rate, streaming chunks)
-- [ ] Propagate trace context in headers
-- [ ] Add OpencodeClientOptions.EnableTelemetry setting
+- [x] Add OpenTelemetry.Api dependency (using built-in System.Diagnostics.Activity and System.Diagnostics.Metrics)
+- [x] Create ActivitySource for tracing (OpenCodeActivitySource.cs already existed)
+- [x] Add traces for all HTTP operations (integrated into OpenCodeClient.cs)
+- [x] Add metrics (request duration, error rate, streaming chunks) (OpenCodeMetrics.cs)
+- [x] Propagate trace context in headers (W3C traceparent/tracestate via PropagateTraceContext)
+- [x] Add OpencodeClientOptions.EnableTelemetry setting (already existed, default: true)
 - [ ] Test with Jaeger or Zipkin
-- [ ] Document APM integration
+- [x] Document APM integration (docs/apm-integration.md)
 
 ## Acceptance Criteria
 
