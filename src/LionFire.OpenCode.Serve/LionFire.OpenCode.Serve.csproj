@@ -9,18 +9,34 @@
 
     <!-- Package metadata -->
     <PackageId>LionFire.OpenCode.Serve</PackageId>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <Authors>LionFire</Authors>
-    <Description>A .NET SDK for the OpenCode local headless server API (opencode serve)</Description>
-    <PackageTags>opencode;ai;coding;sdk;client</PackageTags>
+    <Company>LionFire</Company>
+    <Product>LionFire.OpenCode.Serve</Product>
+    <Description>A .NET SDK for the OpenCode local headless server API (opencode serve). Features full API coverage, streaming responses, dependency injection support, and OpenTelemetry integration.</Description>
+    <PackageTags>opencode;ai;coding;sdk;client;claude;anthropic;llm;chat;streaming</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/lionfire/opencode-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/lionfire/opencode-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>See https://github.com/lionfire/opencode-dotnet/releases</PackageReleaseNotes>
+    <Copyright>Copyright (c) LionFire 2024-2025</Copyright>
+
+    <!-- Assembly info -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
 
     <!-- Enable XML documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Suppress missing XML comments warning for now -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- SourceLink for debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,10 +44,18 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../icon.png" Pack="true" PackagePath="\" Condition="Exists('../../icon.png')" />
+  </ItemGroup>
+
+  <!-- SourceLink package -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
