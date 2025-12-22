@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using LionFire.OpenCode.Serve.Models;
 using LionFire.OpenCode.Serve.Models.Events;
@@ -221,6 +222,7 @@ namespace LionFire.OpenCode.Serve.Internal;
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(object))]
+[JsonSerializable(typeof(JsonElement))]
 public partial class OpenCodeSerializerContext : JsonSerializerContext
 {
 }
