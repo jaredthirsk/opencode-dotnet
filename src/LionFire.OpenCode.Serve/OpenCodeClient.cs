@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -153,6 +154,14 @@ public sealed class OpenCodeClient : IOpenCodeClient
         return await GetAsync<List<Session>>(url, cancellationToken) ?? new List<Session>();
     }
 
+    /// <inheritdoc />
+    public async Task<List<Session>> ListSessionsAsync(SessionListOptions options, string? directory = null, CancellationToken cancellationToken = default)
+    {
+        var queryParams = options.ToQueryParameters();
+        var url = BuildUrl(ApiEndpoints.Sessions, directory, queryParams);
+        return await GetAsync<List<Session>>(url, cancellationToken) ?? new List<Session>();
+    }
+
     public async Task<Session> CreateSessionAsync(CreateSessionRequest? request = null, string? directory = null, CancellationToken cancellationToken = default)
     {
         var url = BuildUrl(ApiEndpoints.Sessions, directory);
@@ -281,11 +290,47 @@ public sealed class OpenCodeClient : IOpenCodeClient
         return await GetAsync<List<MessageWithParts>>(url, cancellationToken) ?? new List<MessageWithParts>();
     }
 
+    /// <inheritdoc />
+    public async Task<List<MessageWithParts>> ListMessagesAsync(
+        string sessionId,
+        MessageListOptions options,
+        string? directory = null,
+        CancellationToken cancellationToken = default)
+    {
+        options.Validate();
+        var queryParams = options.ToQueryParameters();
+        var url = BuildUrl(ApiEndpoints.SessionMessages(sessionId), directory, queryParams);
+        return await GetAsync<List<MessageWithParts>>(url, cancellationToken) ?? new List<MessageWithParts>();
+    }
+
     public async Task<MessageWithParts> PromptAsync(string sessionId, SendMessageRequest request, string? directory = null, CancellationToken cancellationToken = default)
     {
         var url = BuildUrl(ApiEndpoints.SessionPrompt(sessionId), directory);
         return await PostAsync<SendMessageRequest, MessageWithParts>(url, request, cancellationToken)
             ?? throw new OpenCodeException("Failed to send prompt");
+    }
+
+    /// <inheritdoc />
+    public async Task<MessageWithParts> PromptAsync(
+        string sessionId,
+        SendMessageRequest request,
+        TimeSpan timeout,
+        string? directory = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        try
+        {
+            var url = BuildUrl(ApiEndpoints.SessionPrompt(sessionId), directory);
+            return await PostAsync<SendMessageRequest, MessageWithParts>(url, request, linkedCts.Token)
+                ?? throw new OpenCodeException("Failed to send prompt");
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException($"The prompt operation timed out after {timeout.TotalSeconds:F1} seconds.");
+        }
     }
 
     public async Task PromptAsyncNonBlocking(string sessionId, SendMessageRequest request, string? directory = null, CancellationToken cancellationToken = default)
@@ -556,6 +601,36 @@ public sealed class OpenCodeClient : IOpenCodeClient
         }
     }
 
+    /// <inheritdoc />
+    public async IAsyncEnumerable<Event> SubscribeToEventsAsync(
+        IProgress<StreamingProgress> progress,
+        string? directory = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var url = BuildUrl(ApiEndpoints.Events, directory);
+        await foreach (var ev in StreamServerSentEventsWithProgressAsync<Event>(url, directory, progress, cancellationToken))
+        {
+            yield return ev;
+        }
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<Event> SubscribeToEventsAsync(
+        IProgress<StreamingProgress> progress,
+        TimeSpan timeout,
+        string? directory = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        var url = BuildUrl(ApiEndpoints.Events, directory);
+        await foreach (var ev in StreamServerSentEventsWithProgressAsync<Event>(url, directory, progress, linkedCts.Token))
+        {
+            yield return ev;
+        }
+    }
+
     public async Task DisposeInstanceAsync(string? directory = null, CancellationToken cancellationToken = default)
     {
         var url = BuildUrl(ApiEndpoints.InstanceDispose, directory);
@@ -566,32 +641,79 @@ public sealed class OpenCodeClient : IOpenCodeClient
 
     #region HTTP Helper Methods
 
-    private async Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken)
+    private async Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? ExtractOperationName(url);
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
         try
         {
+            if (_options.EnableTelemetry)
+            {
+                OpenCodeMetrics.Instance.RecordRequestStarted(operation, "GET");
+            }
+
             _logger.LogDebug("GET {Url}", url);
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            PropagateTraceContext(request, activity);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
                 await HandleErrorResponseAsync(response, cancellationToken);
             }
 
-            return await response.Content.ReadFromJsonAsync<T>(JsonOptions.Default, cancellationToken);
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "GET", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
+
+            return await response.Content.ReadFromJsonAsync<T>(JsonOptions.SourceGenerated, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
+            RecordError(activity, stopwatch, operation, "GET", ex);
             throw new OpenCodeConnectionException($"Failed to connect to OpenCode server at {_httpClient.BaseAddress}", _httpClient.BaseAddress?.ToString(), ex);
+        }
+        catch (Exception ex) when (ex is not OpenCodeException)
+        {
+            RecordError(activity, stopwatch, operation, "GET", ex);
+            throw;
         }
     }
 
-    private async Task<TResponse?> PostAsync<TRequest, TResponse>(string url, TRequest? request, CancellationToken cancellationToken)
+    private async Task<TResponse?> PostAsync<TRequest, TResponse>(string url, TRequest? request, CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? ExtractOperationName(url);
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
         try
         {
+            if (_options.EnableTelemetry)
+            {
+                OpenCodeMetrics.Instance.RecordRequestStarted(operation, "POST");
+            }
+
             _logger.LogDebug("POST {Url}", url);
-            var response = await _httpClient.PostAsJsonAsync(url, request, JsonOptions.Default, cancellationToken);
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+            httpRequest.Content = JsonContent.Create(request, options: JsonOptions.SourceGenerated);
+            PropagateTraceContext(httpRequest, activity);
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -599,7 +721,14 @@ public sealed class OpenCodeClient : IOpenCodeClient
             }
 
             if (typeof(TResponse) == typeof(object))
+            {
+                if (_options.EnableTelemetry && stopwatch != null)
+                {
+                    OpenCodeMetrics.Instance.RecordRequestCompleted(
+                        operation, "POST", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+                }
                 return default;
+            }
 
             // Check for empty response or non-JSON content type
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -632,46 +761,104 @@ public sealed class OpenCodeClient : IOpenCodeClient
                     response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.Default, cancellationToken);
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "POST", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
+
+            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.SourceGenerated, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
+            RecordError(activity, stopwatch, operation, "POST", ex);
             throw new OpenCodeConnectionException($"Failed to connect to OpenCode server at {_httpClient.BaseAddress}", _httpClient.BaseAddress?.ToString(), ex);
         }
         catch (System.Text.Json.JsonException ex)
         {
+            RecordError(activity, stopwatch, operation, "POST", ex);
             throw new OpenCodeApiException($"Failed to parse JSON response from server. URL: {url}. Error: {ex.Message}", System.Net.HttpStatusCode.OK, ex);
+        }
+        catch (Exception ex) when (ex is not OpenCodeException)
+        {
+            RecordError(activity, stopwatch, operation, "POST", ex);
+            throw;
         }
     }
 
-    private async Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest request, CancellationToken cancellationToken)
+    private async Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest request, CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? ExtractOperationName(url);
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
         try
         {
+            if (_options.EnableTelemetry)
+            {
+                OpenCodeMetrics.Instance.RecordRequestStarted(operation, "PUT");
+            }
+
             _logger.LogDebug("PUT {Url}", url);
-            var response = await _httpClient.PutAsJsonAsync(url, request, JsonOptions.Default, cancellationToken);
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Put, url);
+            httpRequest.Content = JsonContent.Create(request, options: JsonOptions.SourceGenerated);
+            PropagateTraceContext(httpRequest, activity);
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
                 await HandleErrorResponseAsync(response, cancellationToken);
             }
 
-            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.Default, cancellationToken);
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "PUT", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
+
+            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.SourceGenerated, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
+            RecordError(activity, stopwatch, operation, "PUT", ex);
             throw new OpenCodeConnectionException($"Failed to connect to OpenCode server at {_httpClient.BaseAddress}", _httpClient.BaseAddress?.ToString(), ex);
+        }
+        catch (Exception ex) when (ex is not OpenCodeException)
+        {
+            RecordError(activity, stopwatch, operation, "PUT", ex);
+            throw;
         }
     }
 
-    private async Task<TResponse?> PatchAsync<TRequest, TResponse>(string url, TRequest request, CancellationToken cancellationToken)
+    private async Task<TResponse?> PatchAsync<TRequest, TResponse>(string url, TRequest request, CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? ExtractOperationName(url);
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
         try
         {
+            if (_options.EnableTelemetry)
+            {
+                OpenCodeMetrics.Instance.RecordRequestStarted(operation, "PATCH");
+            }
+
             _logger.LogDebug("PATCH {Url}", url);
-            var content = JsonContent.Create(request, options: JsonOptions.Default);
-            var httpRequest = new HttpRequestMessage(HttpMethod.Patch, url) { Content = content };
+            var content = JsonContent.Create(request, options: JsonOptions.SourceGenerated);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Patch, url) { Content = content };
+            PropagateTraceContext(httpRequest, activity);
+
             var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -679,44 +866,107 @@ public sealed class OpenCodeClient : IOpenCodeClient
             }
 
             if (typeof(TResponse) == typeof(object))
+            {
+                if (_options.EnableTelemetry && stopwatch != null)
+                {
+                    OpenCodeMetrics.Instance.RecordRequestCompleted(
+                        operation, "PATCH", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+                }
                 return default;
+            }
 
-            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.Default, cancellationToken);
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "PATCH", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
+
+            return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions.SourceGenerated, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
+            RecordError(activity, stopwatch, operation, "PATCH", ex);
             throw new OpenCodeConnectionException($"Failed to connect to OpenCode server at {_httpClient.BaseAddress}", _httpClient.BaseAddress?.ToString(), ex);
+        }
+        catch (Exception ex) when (ex is not OpenCodeException)
+        {
+            RecordError(activity, stopwatch, operation, "PATCH", ex);
+            throw;
         }
     }
 
-    private async Task DeleteAsync(string url, CancellationToken cancellationToken)
+    private async Task DeleteAsync(string url, CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? ExtractOperationName(url);
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
         try
         {
+            if (_options.EnableTelemetry)
+            {
+                OpenCodeMetrics.Instance.RecordRequestStarted(operation, "DELETE");
+            }
+
             _logger.LogDebug("DELETE {Url}", url);
-            var response = await _httpClient.DeleteAsync(url, cancellationToken);
+
+            using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+            PropagateTraceContext(request, activity);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
                 await HandleErrorResponseAsync(response, cancellationToken);
             }
+
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "DELETE", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
         }
         catch (HttpRequestException ex)
         {
+            RecordError(activity, stopwatch, operation, "DELETE", ex);
             throw new OpenCodeConnectionException($"Failed to connect to OpenCode server at {_httpClient.BaseAddress}", _httpClient.BaseAddress?.ToString(), ex);
+        }
+        catch (Exception ex) when (ex is not OpenCodeException)
+        {
+            RecordError(activity, stopwatch, operation, "DELETE", ex);
+            throw;
         }
     }
 
-    private async IAsyncEnumerable<T> StreamServerSentEventsAsync<T>(string url, string? directory, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<T> StreamServerSentEventsAsync<T>(string url, string? directory, [EnumeratorCancellation] CancellationToken cancellationToken, string? operationName = null)
     {
+        var operation = operationName ?? "opencode.sse.stream";
+        var stopwatch = _options.EnableTelemetry ? Stopwatch.StartNew() : null;
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
+        if (_options.EnableTelemetry)
+        {
+            OpenCodeMetrics.Instance.RecordRequestStarted(operation, "GET");
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Accept.ParseAdd("text/event-stream");
+        PropagateTraceContext(request, activity);
 
         HttpResponseMessage? response = null;
+        long chunkCount = 0;
         try
         {
             _logger.LogDebug("GET (SSE) {Url}", url);
             response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -741,7 +991,14 @@ public sealed class OpenCodeClient : IOpenCodeClient
                     {
                         var json = eventData.ToString();
                         _logger.LogDebug("SSE JSON: {Json}", json);
-                        var ev = JsonSerializer.Deserialize<T>(json, JsonOptions.Default);
+
+                        if (_options.EnableTelemetry)
+                        {
+                            chunkCount++;
+                            OpenCodeMetrics.Instance.RecordStreamingChunk(operation, directory, json.Length);
+                        }
+
+                        var ev = JsonSerializer.Deserialize<T>(json, JsonOptions.SourceGenerated);
                         if (ev != null)
                             yield return ev;
                         eventData.Clear();
@@ -754,9 +1011,167 @@ public sealed class OpenCodeClient : IOpenCodeClient
                     eventData.Append(line.Substring(6));
                 }
             }
+
+            if (_options.EnableTelemetry && stopwatch != null)
+            {
+                activity?.SetTag("opencode.streaming.chunks", chunkCount);
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "GET", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
         }
         finally
         {
+            response?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Streams server-sent events with progress callback support.
+    /// </summary>
+    /// <typeparam name="T">The type of events to deserialize.</typeparam>
+    /// <param name="url">The URL to stream from.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="progress">Progress callback for streaming updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="operationName">Optional operation name for telemetry.</param>
+    /// <returns>An async enumerable of events.</returns>
+    private async IAsyncEnumerable<T> StreamServerSentEventsWithProgressAsync<T>(
+        string url,
+        string? directory,
+        IProgress<StreamingProgress> progress,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        string? operationName = null)
+    {
+        var operation = operationName ?? "opencode.sse.stream";
+        var stopwatch = Stopwatch.StartNew();
+        using var activity = _options.EnableTelemetry
+            ? OpenCodeActivitySource.StartActivity(operation)
+            : null;
+
+        if (_options.EnableTelemetry)
+        {
+            OpenCodeMetrics.Instance.RecordRequestStarted(operation, "GET");
+        }
+
+        // Report starting
+        progress.Report(StreamingProgress.Starting());
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        PropagateTraceContext(request, activity);
+
+        HttpResponseMessage? response = null;
+        int chunkCount = 0;
+        long bytesReceived = 0;
+        int characterCount = 0;
+
+        // First, establish the connection and handle errors before yielding
+        try
+        {
+            _logger.LogDebug("GET (SSE with progress) {Url}", url);
+            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            activity?.SetTag(OpenCodeActivitySource.Tags.StatusCode, (int)response.StatusCode);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                await HandleErrorResponseAsync(response, cancellationToken);
+            }
+
+            // Report connected
+            progress.Report(StreamingProgress.Connected());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            progress.Report(StreamingProgress.Cancelled(chunkCount, stopwatch.Elapsed));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            progress.Report(StreamingProgress.Failed(ex, chunkCount, stopwatch.Elapsed));
+            throw;
+        }
+
+        // Now stream the data - we cannot yield inside try-catch, so we handle errors differently
+        Stream? stream = null;
+        StreamReader? reader = null;
+        try
+        {
+            stream = await response!.Content.ReadAsStreamAsync(cancellationToken);
+            reader = new StreamReader(stream);
+
+            string? line;
+            var eventData = new StringBuilder();
+            string? eventType = null;
+
+            while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    progress.Report(StreamingProgress.Cancelled(chunkCount, stopwatch.Elapsed));
+                    yield break;
+                }
+
+                bytesReceived += System.Text.Encoding.UTF8.GetByteCount(line) + 1; // +1 for newline
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    // Empty line indicates end of event
+                    if (eventData.Length > 0)
+                    {
+                        var json = eventData.ToString();
+                        _logger.LogDebug("SSE JSON: {Json}", json);
+
+                        chunkCount++;
+                        characterCount += json.Length;
+
+                        if (_options.EnableTelemetry)
+                        {
+                            OpenCodeMetrics.Instance.RecordStreamingChunk(operation, directory, json.Length);
+                        }
+
+                        // Report progress
+                        progress.Report(StreamingProgress.ChunkReceived(
+                            chunkCount,
+                            bytesReceived,
+                            characterCount,
+                            stopwatch.Elapsed,
+                            json.Length > 200 ? json[..200] + "..." : json,
+                            eventType));
+
+                        var ev = JsonSerializer.Deserialize<T>(json, JsonOptions.SourceGenerated);
+                        if (ev != null)
+                            yield return ev;
+                        eventData.Clear();
+                        eventType = null;
+                    }
+                    continue;
+                }
+
+                if (line.StartsWith("event: "))
+                {
+                    eventType = line.Substring(7);
+                }
+                else if (line.StartsWith("data: "))
+                {
+                    eventData.Append(line.Substring(6));
+                }
+            }
+
+            // Report completion
+            progress.Report(StreamingProgress.Completed(chunkCount, bytesReceived, characterCount, stopwatch.Elapsed));
+
+            if (_options.EnableTelemetry && response != null)
+            {
+                activity?.SetTag("opencode.streaming.chunks", chunkCount);
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, "GET", (int)response.StatusCode, stopwatch.Elapsed.TotalMilliseconds, true);
+            }
+        }
+        finally
+        {
+            reader?.Dispose();
+            stream?.Dispose();
             response?.Dispose();
         }
     }
@@ -782,6 +1197,87 @@ public sealed class OpenCodeClient : IOpenCodeClient
         {
             throw new OpenCodeException($"Request failed with status {statusCode}: {content}");
         }
+    }
+
+    /// <summary>
+    /// Propagates W3C trace context headers to outgoing HTTP requests.
+    /// </summary>
+    /// <param name="request">The HTTP request message.</param>
+    /// <param name="activity">The current activity (may be null).</param>
+    private static void PropagateTraceContext(HttpRequestMessage request, Activity? activity)
+    {
+        if (activity == null) return;
+
+        // W3C Trace Context headers
+        // traceparent: version-trace_id-parent_id-trace_flags
+        var traceParent = $"00-{activity.TraceId}-{activity.SpanId}-{(activity.Recorded ? "01" : "00")}";
+        request.Headers.TryAddWithoutValidation("traceparent", traceParent);
+
+        // tracestate: vendor-specific key-value pairs
+        if (!string.IsNullOrEmpty(activity.TraceStateString))
+        {
+            request.Headers.TryAddWithoutValidation("tracestate", activity.TraceStateString);
+        }
+    }
+
+    /// <summary>
+    /// Records an error to both the activity and metrics.
+    /// </summary>
+    private void RecordError(Activity? activity, Stopwatch? stopwatch, string operation, string httpMethod, Exception ex)
+    {
+        activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+        activity?.SetTag(OpenCodeActivitySource.Tags.ErrorType, ex.GetType().Name);
+
+        if (_options.EnableTelemetry)
+        {
+            OpenCodeMetrics.Instance.RecordError(operation, ex.GetType().Name, httpMethod);
+            if (stopwatch != null)
+            {
+                // Record as failed request with status code 0 for connection errors
+                OpenCodeMetrics.Instance.RecordRequestCompleted(
+                    operation, httpMethod, 0, stopwatch.Elapsed.TotalMilliseconds, false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts an operation name from the URL path for telemetry purposes.
+    /// </summary>
+    private static string ExtractOperationName(string url)
+    {
+        // Extract meaningful operation name from URL
+        // e.g., "/session" -> "opencode.session.list"
+        // e.g., "/session/{id}" -> "opencode.session.get"
+        // e.g., "/session/{id}/message" -> "opencode.message.send"
+
+        var path = url.Split('?')[0].TrimStart('/').ToLowerInvariant();
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length == 0)
+            return "opencode.unknown";
+
+        // Map common paths to semantic operation names
+        var operationBuilder = new StringBuilder("opencode.");
+
+        for (int i = 0; i < segments.Length && i < 3; i++)
+        {
+            var segment = segments[i];
+
+            // Skip UUIDs and numeric IDs
+            if (Guid.TryParse(segment, out _) || int.TryParse(segment, out _))
+                continue;
+
+            // Skip very long segments (likely IDs)
+            if (segment.Length > 20)
+                continue;
+
+            if (operationBuilder.Length > 9) // "opencode."
+                operationBuilder.Append('.');
+
+            operationBuilder.Append(segment);
+        }
+
+        return operationBuilder.Length > 9 ? operationBuilder.ToString() : "opencode.unknown";
     }
 
     #endregion

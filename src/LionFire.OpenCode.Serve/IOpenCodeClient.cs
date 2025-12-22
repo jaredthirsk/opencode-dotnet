@@ -84,6 +84,40 @@ public interface IOpenCodeClient : IAsyncDisposable
     Task<List<Session>> ListSessionsAsync(string? directory = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists sessions with filtering and pagination options.
+    /// </summary>
+    /// <param name="options">Filtering and pagination options.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A list of <see cref="Session"/> instances matching the filter criteria.</returns>
+    /// <remarks>
+    /// <para>
+    /// This overload provides advanced filtering capabilities including:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Date range filtering (created/updated before/after)</description></item>
+    /// <item><description>Title search (case-insensitive substring match)</description></item>
+    /// <item><description>Status filtering (idle, busy, retry)</description></item>
+    /// <item><description>Shared session filtering</description></item>
+    /// <item><description>Parent/child relationship filtering</description></item>
+    /// <item><description>Pagination with skip/limit</description></item>
+    /// <item><description>Configurable sort order</description></item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Get the 10 most recently updated sessions from the last week
+    /// var sessions = await client.ListSessionsAsync(new SessionListOptions
+    /// {
+    ///     Limit = 10,
+    ///     CreatedAfter = DateTimeOffset.UtcNow.AddDays(-7),
+    ///     SortOrder = SessionSortOrder.UpdatedDescending
+    /// });
+    /// </code>
+    /// </example>
+    Task<List<Session>> ListSessionsAsync(SessionListOptions options, string? directory = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new session.
     /// </summary>
     /// <param name="request">Optional request with parentID and title.</param>
@@ -258,6 +292,51 @@ public interface IOpenCodeClient : IAsyncDisposable
     Task<List<MessageWithParts>> ListMessagesAsync(string sessionId, int? limit = null, string? directory = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists messages in a session with pagination and filtering options.
+    /// </summary>
+    /// <param name="sessionId">The session ID.</param>
+    /// <param name="options">Pagination and filtering options.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A list of <see cref="MessageWithParts"/> instances.</returns>
+    /// <remarks>
+    /// <para>
+    /// This overload supports two pagination strategies:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <strong>Offset-based</strong>: Use Skip and Limit for traditional page navigation.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <strong>Cursor-based</strong>: Use Before or After message IDs for stable pagination.
+    /// Recommended for real-time scenarios or large message histories.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Offset-based: Get page 2 with 20 messages per page
+    /// var page2 = await client.ListMessagesAsync(sessionId, new MessageListOptions
+    /// {
+    ///     Skip = 20,
+    ///     Limit = 20
+    /// });
+    ///
+    /// // Cursor-based: Get 20 messages before a specific message
+    /// var olderMessages = await client.ListMessagesAsync(sessionId, new MessageListOptions
+    /// {
+    ///     Before = "msg_abc123",
+    ///     Limit = 20
+    /// });
+    /// </code>
+    /// </example>
+    Task<List<MessageWithParts>> ListMessagesAsync(string sessionId, MessageListOptions options, string? directory = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sends a prompt to a session and waits for the complete response.
     /// </summary>
     /// <param name="sessionId">The session ID.</param>
@@ -266,6 +345,38 @@ public interface IOpenCodeClient : IAsyncDisposable
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The <see cref="MessageWithParts"/> response.</returns>
     Task<MessageWithParts> PromptAsync(string sessionId, SendMessageRequest request, string? directory = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a prompt to a session with a custom timeout.
+    /// </summary>
+    /// <param name="sessionId">The session ID.</param>
+    /// <param name="request">The message request.</param>
+    /// <param name="timeout">The timeout for this specific operation, overriding the default.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The <see cref="MessageWithParts"/> response.</returns>
+    /// <exception cref="TimeoutException">Thrown when the operation exceeds the specified timeout.</exception>
+    /// <remarks>
+    /// <para>
+    /// Use this overload when you need to set a custom timeout for a specific operation,
+    /// such as when sending a complex prompt that may require more time to process.
+    /// </para>
+    /// <para>
+    /// The timeout parameter overrides both the client's default timeout and the
+    /// MessageTimeout configuration.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Send a complex prompt with a 10-minute timeout
+    /// var response = await client.PromptAsync(
+    ///     sessionId,
+    ///     new SendMessageRequest { Parts = { PartInput.TextInput("Complex task...") } },
+    ///     timeout: TimeSpan.FromMinutes(10)
+    /// );
+    /// </code>
+    /// </example>
+    Task<MessageWithParts> PromptAsync(string sessionId, SendMessageRequest request, TimeSpan timeout, string? directory = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sends a prompt to a session asynchronously (non-blocking).
@@ -594,6 +705,56 @@ public interface IOpenCodeClient : IAsyncDisposable
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>An async enumerable of <see cref="Event"/> instances.</returns>
     IAsyncEnumerable<Event> SubscribeToEventsAsync(string? directory = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subscribes to events with progress callbacks for UI scenarios.
+    /// </summary>
+    /// <param name="progress">Progress callback for streaming status updates.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An async enumerable of <see cref="Event"/> instances.</returns>
+    /// <remarks>
+    /// <para>
+    /// The progress callback receives <see cref="StreamingProgress"/> updates including:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Connection status (Starting, Connected, Receiving)</description></item>
+    /// <item><description>Chunk count and bytes received</description></item>
+    /// <item><description>Elapsed time</description></item>
+    /// <item><description>Error and cancellation notifications</description></item>
+    /// </list>
+    /// <para>
+    /// This is particularly useful for updating UI elements with streaming status.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var progress = new Progress&lt;StreamingProgress&gt;(p =>
+    /// {
+    ///     Console.WriteLine($"Status: {p.Status}, Chunks: {p.ChunkCount}, Bytes: {p.BytesReceived}");
+    /// });
+    ///
+    /// await foreach (var evt in client.SubscribeToEventsAsync(progress))
+    /// {
+    ///     // Process event
+    /// }
+    /// </code>
+    /// </example>
+    IAsyncEnumerable<Event> SubscribeToEventsAsync(IProgress<StreamingProgress> progress, string? directory = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subscribes to events with progress callbacks and a custom timeout.
+    /// </summary>
+    /// <param name="progress">Progress callback for streaming status updates.</param>
+    /// <param name="timeout">The timeout for the streaming operation.</param>
+    /// <param name="directory">Optional directory context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An async enumerable of <see cref="Event"/> instances.</returns>
+    /// <remarks>
+    /// Use this overload when you need to limit how long the event subscription should run.
+    /// After the timeout, the stream will complete gracefully.
+    /// </remarks>
+    IAsyncEnumerable<Event> SubscribeToEventsAsync(IProgress<StreamingProgress> progress, TimeSpan timeout, string? directory = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Disposes the current instance.
